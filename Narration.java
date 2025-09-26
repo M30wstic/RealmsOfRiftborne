@@ -272,13 +272,14 @@ class Narration{
                 System.out.println("│  Player Character  │");
                 System.out.println("└────────────────────┘");
             
-                System.out.println("Aria Caelith (Mother’s Surname)");
+                System.out.println("Aria Caelith (Mother\'s Surname)");
                 System.out.println("Age: 15");
                 System.out.println("Personality: Quick-Witted, Resourceful, Fiercely Protective of Kael");
                 System.out.println("Grade Level: First Year Student");
                 System.out.println("Fun Fact: Siblings with Kael Solmere");
                 System.out.println("The siblings aim to master their respective skills, uncover the truth about their family's past, \nand bring the “Kim Morvain” to justice. They rely on each other's strengths to overcome challenges \nand support each other in their quest for revenge and redemption.");
                 System.out.println();
+
                 
                 System.out.println("┌───────────────────────────────────────────┐");
                 System.out.println("│  Gunner (MAX LVL: 60)                     │");
@@ -304,16 +305,20 @@ class Narration{
     }
     
     public static void choiceMage() {
+
                 System.out.println();
                 System.out.println("┌────────────────────┐");
                 System.out.println("│  Player Character  │");
                 System.out.println("└────────────────────┘");
+
+                
                 System.out.println("Selene Arclight");
                 System.out.println("Age: 15");
                 System.out.println("Personality: Prideful");
                 System.out.println("Grade Level: First Year Student");
                 System.out.println("Fun Fact: To be followed...");
                 System.out.println();
+                
                 
                 System.out.println("┌───────────────────────────────────────────┐");
                 System.out.println("│  Mage (MAX LVL: 60)                       │");
@@ -335,7 +340,7 @@ class Narration{
                 System.out.println("Born into the prestigious mage family, Arclight, as the legitimate eldest child, \nSelene was expected to inherit the family head’s mantle. Until her father brought \nhome a young boy claiming that he is her brother, and that she should support him \nin becoming the next head of the family.");
                 System.out.println("Determined to reclaim her status as heir, she enrolled in the academy. Her goal? \nTo learn everything the academy has to offer and achieve something so great \nthat even her father can’t deny her worth. \nAnd killing the “Kim Morvain” seems just right for that.");
                 System.out.println();
-    }
+        }
 
 
 }
