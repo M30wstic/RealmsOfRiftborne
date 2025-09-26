@@ -3,12 +3,11 @@ import java.util.Scanner;
 class Main {
     public static void main(String[] args) {
         Scanner scan = new Scanner(System.in);
-
-        int number = scan.nextInt();
-        System.out.println("You entered: " + number);
+        StartMenu startMenu = new StartMenu();
         
-        scan.close();
+        startMenu.displayStartMenu();
 
+        scan.close();
         return;
     }
 }

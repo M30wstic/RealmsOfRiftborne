@@ -7,6 +7,41 @@ import java.util.Scanner;
 // Other function needed:
 // Shops
 // Inventory
+
+class StartMenu { 
+    static Scanner scan = new Scanner(System.in);
+
+    public void displayStartMenu(){
+        System.out.println("+------------------------------+");
+        System.out.println("|        Mystvale Academy      |");
+        System.out.println("+------------------------------+");
+        System.out.println("|    A Text-Based Adventure    |");
+        System.out.println("|  in a World of Sorcery and   |");
+        System.out.println("|         Shadowed Halls       |");
+        System.out.println("+------------------------------+");
+        System.out.println("|          1. Start Game       |");
+        System.out.println("|          2. Exit Game        |");
+        System.out.println("+------------------------------+");
+        System.out.print("Enter your choice (1-2): ");
+
+        String startMenuChoice = scan.nextLine();
+        System.out.println();
+
+        switch (startMenuChoice) {
+            case "1":
+                System.out.println("Starting the game...");
+                break;
+
+            case "2":
+                System.out.println("Goodbye!");
+                break;
+
+            default:
+                System.out.println("Invalid choice. Try again.");
+        }
+    }
+}
+
 class Menu extends Narration {
     static Scanner scanner = new Scanner(System.in);
 
