@@ -14,7 +14,8 @@ class StartMenu extends Narration {
     static boolean hasVisitedPrologue = false;
 
     public void displayStartMenu(){
-        CharacterMenu handler = new CharacterMenu();
+        CharacterMenu characterMenuHandler = new CharacterMenu();
+        Menu mainMenuHandler = new Menu();
 
         System.out.println("+------------------------------+");
         System.out.println("|        Mystvale Academy      |");
@@ -29,11 +30,9 @@ class StartMenu extends Narration {
         System.out.print("Enter your choice (1-2): ");
 
         String startMenuChoice = scan.nextLine();
-        System.out.println();
 
         switch (startMenuChoice) {
             case "1":
-                System.out.println();
                 System.out.println("┌─────────────────────────┐");
                 System.out.println("│   Starting the game...  │");
                 System.out.println("└─────────────────────────┘");
@@ -45,12 +44,12 @@ class StartMenu extends Narration {
                     hasVisitedPrologue = true;
                 }
 
-                handler.chooseCharacterMenu();
+                characterMenuHandler.chooseCharacterMenu();
+                mainMenuHandler.defaultMainMenu();
 
                 break;
 
             case "2":
-                System.out.println();
                 System.out.println("┌───────────┐");
                 System.out.println("│  Goodbye! │");
                 System.out.println("└───────────┘");
@@ -58,11 +57,10 @@ class StartMenu extends Narration {
                 break;
 
             default:
-                System.out.println();
                 System.out.println("┌─────────────────────────────┐");
                 System.out.println("│  Invalid choice. Try again! │");
                 System.out.println("└─────────────────────────────┘");
-                System.out.println();
+                displayStartMenu();
         }
     }
 }
@@ -83,12 +81,11 @@ class Menu extends Narration {
     static boolean hasVisitedArea2 = false;
     static boolean hasVisitedArea3 = false;
 
-    public static void defaultMainMenu(){
-        boolean defaultMainMenu = true;
+    public void defaultMainMenu(){
+        boolean runMainMenu = true;
         AcademyMenu handler = new AcademyMenu();
         
-        while(defaultMainMenu){
-            System.out.println();
+        while(runMainMenu){
             System.out.println("+------------------------------------------+");
             System.out.println("|  --- MYSTVALE ACADEMY MAIN MENU ---      |");
             System.out.println("+------------------------------------------+");
@@ -109,47 +106,38 @@ class Menu extends Narration {
             
             switch (mainMenuChoice){
                 case "1":
-                    if(!hasVisitedAcademy){
-                        academyNarration();
-                        hasVisitedAcademy = true;
-                    } 
-                    
-                    System.out.println();
                     System.out.println("┌──────────────────────────────┐");
                     System.out.println("│   Where do you want to go?   │");
                     System.out.println("└──────────────────────────────┘");
                     System.out.println();
 
+                    if(!hasVisitedAcademy){
+                        academyNarration();
+                        hasVisitedAcademy = true;
+                    } 
+                    
                     handler.academyMapMenu();
                     
                     break;
 
                 case "2":
+                    System.out.println("┌──────────────────────────┐");
+                    System.out.println("│    Welcome to the shop   │");
+                    System.out.println("└──────────────────────────┘");
+                    System.out.println();
+
                     if(!hasVisitedShop){
                         shopNarration();
                         hasVisitedShop = true;
                     } 
                     
-                    System.out.println();
-                    System.out.println("┌──────────────────────────┐");
-                    System.out.println("│    Welcome to the shop   │");
-                    System.out.println("└──────────────────────────┘");
-                    System.out.println();
-                    
-                    
                     //shopFunction();
                     break;
 
                 case "3":
-                    if(!hasOpenedInventory){
-                        inventoryNarration();
-                        hasOpenedInventory = true;
-                    } 
-                    
                     boolean isInventoryEmpty = false;
                     
                     if(!isInventoryEmpty){
-                        System.out.println();
                         System.out.println("┌───────────────────────────────────────┐");
                         System.out.println("│      Hmmm. Nothing to see here.       │");
                         System.out.println("│   Go shop if you want to own items.   │");
@@ -159,56 +147,59 @@ class Menu extends Narration {
                     } else{
                         //inventoryFunction();
                     }
+
+                    if(!hasOpenedInventory){
+                        inventoryNarration();
+                        hasOpenedInventory = true;
+                    } 
+                    
                     break;
 
                 case "4":
                     
                     // add restriction
+
+                    System.out.println("┌────────────────────────────────────┐");
+                    System.out.println("│      Beware of forest entities     │");
+                    System.out.println("└────────────────────────────────────┘");
+                    System.out.println();
                     
                     if(!hasVisitedArea1){
                         area1Narration();
                         hasVisitedArea1 = true;
                     }
                     
-                    System.out.println();
-                    System.out.println("┌────────────────────────────────────┐");
-                    System.out.println("│      Beware of forest entities     │");
-                    System.out.println("└────────────────────────────────────┘");
-                    System.out.println();
-                
                     break;
                     
                 case "5":
                     
                     // add restriction
+
+                    System.out.println("┌────────────────────────────────┐");
+                    System.out.println("│    Beware of swamp entities    │");
+                    System.out.println("└────────────────────────────────┘");
+                    System.out.println();
                     
                     if(!hasVisitedArea2){
                         area2Narration();
                         hasVisitedArea2 = true;
                     }
-                    
-                    System.out.println();
-                    System.out.println("┌────────────────────────────────┐");
-                    System.out.println("│    Beware of swamp entities    │");
-                    System.out.println("└────────────────────────────────┘");
-                    System.out.println();
 
                     break;
                     
                 case "6":
                     
                     // add restriction
+
+                    System.out.println("┌──────────────────────────────────────────────────┐");
+                    System.out.println("│    Warning! You may or may not come out alive    │");
+                    System.out.println("└──────────────────────────────────────────────────┘");
+                    System.out.println();
                     
                     if(!hasVisitedArea3){
                         area3Narration();
                         hasVisitedArea3 = true;
                     }
-                    
-                    System.out.println();
-                    System.out.println("┌──────────────────────────────────────────────────┐");
-                    System.out.println("│    Warning! You may or may not come out alive    │");
-                    System.out.println("└──────────────────────────────────────────────────┘");
-                    System.out.println();
                     
                     break;
 
@@ -217,28 +208,23 @@ class Menu extends Narration {
                     
                     char ifWantToQuit = scanner.next().charAt(0);
     
-                    if(ifWantToQuit == 'y'){
-                        if(ifWantToQuit == 'Y'){
-                            System.out.println();
+                    if(ifWantToQuit == 'y' || ifWantToQuit == 'Y'){
                             System.out.println("┌────────────┐");
                             System.out.println("│ Good Game! │");
                             System.out.println("└────────────┘");
                             System.out.println();
-
-                            defaultMainMenu = false;
+                            runMainMenu = false;
                             break;
-                        }
-                    } else if(ifWantToQuit == 'n'){
-                        if(ifWantToQuit == 'N'){
-                            System.out.println();
+                        
+                    } else if(ifWantToQuit == 'n' || ifWantToQuit == 'N'){
                             System.out.println("┌────────────────────────────┐");
                             System.out.println("│  Returning to Main Menu... │");
                             System.out.println("└────────────────────────────┘");
                             System.out.println();
+                            defaultMainMenu();
                             break;
-                        }
+                        
                     } else {
-                        System.out.println();
                         System.out.println("┌────────────────────────────┐");
                         System.out.println("│  Invalid input. Try again! │");
                         System.out.println("└────────────────────────────┘");
@@ -249,7 +235,6 @@ class Menu extends Narration {
                     break;
 
                 default:
-                    System.out.println();
                     System.out.println("┌─────────────────────────────┐");
                     System.out.println("│  Invalid choice. Try again! │");
                     System.out.println("└─────────────────────────────┘");
@@ -267,7 +252,6 @@ class AcademyMenu extends Menu{
         boolean academyMapMenu = true;
 
         while (academyMapMenu) {
-            System.out.println();
             System.out.println("+-------------------------------------+");
             System.out.println("|  --- MYSTVALE ACADEMY MAP MENU ---  |");
             System.out.println("+-------------------------------------+");
@@ -285,67 +269,59 @@ class AcademyMenu extends Menu{
 
             switch (academyMapMenuChoice) {
                 case "1":
-                    if(!hasVisitedLibrary){
-                        libraryNarration();
-                        hasVisitedLibrary = true;
-                    }
-                    
-                    System.out.println();
                     System.out.println("┌──────────────────────────────────────────────┐");
                     System.out.println("│     Shh! Be mindful, others are studying     │");
                     System.out.println("└──────────────────────────────────────────────┘");
                     System.out.println();
 
+                    if(!hasVisitedLibrary){
+                        libraryNarration();
+                        hasVisitedLibrary = true;
+                    }
+
                     break;
 
                 case "2":
-                    if(!hasVisitedCanteen){
-                        canteenNarration();
-                        hasVisitedCanteen = true;
-                    }
-                    
-                    System.out.println();
                     System.out.println("┌────────────────────────────┐");
                     System.out.println("│    Buy at your own risk    │");
                     System.out.println("└────────────────────────────┘");
                     System.out.println();
+                    if(!hasVisitedCanteen){
+                        canteenNarration();
+                        hasVisitedCanteen = true;
+                    }
 
                     break;
 
                 case "3":
-                    if(!hasVisitedGym){
-                        gymNarration();
-                        hasVisitedGym = true;
-                    }
-                    
-                    System.out.println();
                     System.out.println("┌────────────────────────────────────────────┐");
                     System.out.println("│     Are you ready to be physically fit?    │");
                     System.out.println("└────────────────────────────────────────────┘");
                     System.out.println();
+                    if(!hasVisitedGym){
+                        gymNarration();
+                        hasVisitedGym = true;
+                    }
 
-                    
                     break;
 
                 case "4":
                     
                     // add restrictions
+
+                    System.out.println("┌────────────────────────────────────────────┐");
+                    System.out.println("│       May the odds be in your favor        │");
+                    System.out.println("└────────────────────────────────────────────┘");
+                    System.out.println();
                     
                     if(!hasVisitedOffice){
                         principalOfficeNarration();
                         hasVisitedOffice = true;
                     }
                     
-                    System.out.println();
-                    System.out.println("┌────────────────────────────────────────────┐");
-                    System.out.println("│       May the odds be in your favor        │");
-                    System.out.println("└────────────────────────────────────────────┘");
-                    System.out.println();
-                    
                     break;
 
                 case "5":
-                    System.out.println();
                     System.out.println("┌───────────────────────────────────────────┐");
                     System.out.println("│    You have left your current location    │");
                     System.out.println("│    For now                                │");
@@ -364,7 +340,6 @@ class AcademyMenu extends Menu{
                     break;
 
                 default:
-                    System.out.println();
                     System.out.println("┌─────────────────────────────┐");
                     System.out.println("│  Invalid choice. Try again! │");
                     System.out.println("└─────────────────────────────┘");
@@ -377,7 +352,6 @@ class AcademyMenu extends Menu{
 
 class CharacterMenu extends Narration{
     public void chooseCharacterMenu(){
-            System.out.println();
             System.out.println("+------------------------------+");
             System.out.println("|      Choose a character      |");
             System.out.println("|------------------------------|");
@@ -410,11 +384,9 @@ class CharacterMenu extends Narration{
                 break;
 
                 default:
-                System.out.println();
                 System.out.println("┌─────────────────────────────┐");
                 System.out.println("│  Invalid choice. Try again! │");
                 System.out.println("└─────────────────────────────┘");
-                System.out.println();
 
 
             }
