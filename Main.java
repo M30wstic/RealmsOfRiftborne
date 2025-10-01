@@ -1,11 +1,13 @@
+
+//import StartMenu.StartMenu;
 import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
         Scanner scan = new Scanner(System.in);
-        StartMenu startMenu = new StartMenu();
+        //StartMenu startMenu = new StartMenu();
         
-        startMenu.displayStartMenu();
+        //startMenu.displayStartMenu();
 
         scan.close();
         return;
