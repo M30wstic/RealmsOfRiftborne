@@ -237,16 +237,16 @@ public class Narration{
 
         System.out.println("┌───────────────────────────────────────────┐");
         System.out.println("│  Swordsman (MAX LVL: 60)                  │");
-        System.out.println("│  Basic Attack -                           │");
-        System.out.println("│  Skill 1 -                                │");
-        System.out.println("│  Skill 2 -                                │");
-        System.out.println("│  Ultimate -                               │");
+        System.out.println("│  Basic Attack                             │");
+        System.out.println("│  Skill 1 - Blade Dance                    │");
+        System.out.println("│  Skill 2 - Blinding Silhouette            │");
+        System.out.println("│  Ultimate - Shattered Sun                 │");
         System.out.println("│                                           │");
         System.out.println("│  HP (Health Points): 4000                 │");
-        System.out.println("│  MP (Mana Points):    500                 │");
-        System.out.println("│  ATK (Attack):        400                 │");
-        System.out.println("│  DEF (Defence):       250                 │");
-        System.out.println("│  SPD (Speed):         180                 │");
+        System.out.println("│  MP (Mana Points):    700                 │");
+        System.out.println("│  ATK (Attack):        500                 │");
+        System.out.println("│  DEF (Defence):       350                 │");
+        System.out.println("│  SPD (Speed):         200                 │");
         System.out.println("└───────────────────────────────────────────┘");
         
         System.out.println("┌──────────────┐");
@@ -280,15 +280,15 @@ public class Narration{
         System.out.println("┌───────────────────────────────────────────┐");
         System.out.println("│  Gunner (MAX LVL: 60)                     │");
         System.out.println("│  Basic Attack                             │");
-        System.out.println("│  Skill 1 -                                │");
-        System.out.println("│  Skill 2 -                                │");
-        System.out.println("│  Ultimate -                               │");
+        System.out.println("│  Skill 1 - Flurry shots                   │");
+        System.out.println("│  Skill 2 - Frostwind Bullet               │");
+        System.out.println("│  Ultimate - Judgement Phantom             │");
         System.out.println("│                                           │");
-        System.out.println("│  HP (Health Points): 2500                 │");
-        System.out.println("│  MP (Mana Points):   1000                 │");
-        System.out.println("│  ATK (Attack):        500                 │");
-        System.out.println("│  DEF (Defence):       125                 │");
-        System.out.println("│  SPD (Speed):         220                 │");
+        System.out.println("│  HP (Health Points): 4000                 │");
+        System.out.println("│  MP (Mana Points):    600                 │");
+        System.out.println("│  ATK (Attack):        450                 │");
+        System.out.println("│  DEF (Defence):       300                 │");
+        System.out.println("│  SPD (Speed):         200                 │");
         System.out.println("└───────────────────────────────────────────┘");
             
         System.out.println("┌──────────────┐");
@@ -321,11 +321,11 @@ public class Narration{
         System.out.println("│  Skill 2- Chains of Starlight             │");
         System.out.println("│  Ultimate - Astral Cataclysm              │");
         System.out.println("│                                           │");
-        System.out.println("│  HP (Health Points): 3200                 │");
-        System.out.println("│  MP (Mana Points):    600                 │");
-        System.out.println("│  ATK (Attack):        350                 │");
+        System.out.println("│  HP (Health Points): 4000                 │");
+        System.out.println("│  MP (Mana Points):   1000                 │");
+        System.out.println("│  ATK (Attack):        550                 │");
         System.out.println("│  DEF (Defence):       180                 │");
-        System.out.println("│  SPD (Speed):         300                 │");
+        System.out.println("│  SPD (Speed):         200                 │");
         System.out.println("└───────────────────────────────────────────┘");
             
         System.out.println("┌──────────────┐");

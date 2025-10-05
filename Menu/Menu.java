@@ -22,7 +22,7 @@ public class Menu extends Narration {
         
         while(runMainMenu){
             System.out.println("+------------------------------------------+");
-            System.out.println("|  --- MYSTVALE ACADEMY MAIN MENU ---      |");
+            System.out.println("|    --- MYSTVALE ACADEMY MAIN MENU ---    |");
             System.out.println("+------------------------------------------+");
             System.out.println("| 1. Go to Academy                         |");
             System.out.println("| 2. Shop                                  |");
@@ -32,10 +32,10 @@ public class Menu extends Narration {
             System.out.println("| 6. The Forsaken Lands                    |");
             System.out.println("| 7. Exit Game                             |");
             System.out.println("+------------------------------------------+");
-            System.out.println("      ┌──────────────────────────────┐");
-            System.out.println("      │   Where do you want to go?   │");
-            System.out.println("      └──────────────────────────────┘");
-            System.out.print("      >>> ");
+            System.out.println("┌──────────────────────────────┐");
+            System.out.println("│   Where do you want to go?   │");
+            System.out.println("└──────────────────────────────┘");
+            System.out.print(">>> ");
 
             
             String mainMenuChoice = scanner.nextLine();

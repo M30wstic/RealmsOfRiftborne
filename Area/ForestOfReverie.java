@@ -1,5 +1,5 @@
 package Area;
-
+import BattleMechanics.BattleMechanic;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -43,6 +43,7 @@ public class ForestOfReverie {
         if(explore){
             if(rand.nextBoolean()){
                 System.out.println("You are exploring the forest then suddenly a wild creature appears to attack!");
+                
             } else {
                 System.out.println("You are peacefully exploring the forest and noticed that the forest is calm for now.");
             }
@@ -102,6 +103,7 @@ public class ForestOfReverie {
     public void exploreInnerArea() {
         boolean valid = true;
         boolean explore = true;
+        BattleMechanic battle = new BattleMechanic();
 
         System.out.println();
         if(explore){
@@ -114,7 +116,7 @@ public class ForestOfReverie {
         System.out.println();
         
         String[] elderthorn = {
-            "You found something unusual in this area.",
+            "\nYou found something unusual in this area.",
             
             "You slowly approach it and found a tree with an eerie glow.",
             
@@ -133,8 +135,11 @@ public class ForestOfReverie {
             char choice = scan.next().toLowerCase().charAt(0);
 
             if (choice == 'y') {
-                System.out.println("You chose to fight the Forest Guardian, Elderthorn!");
-                // Initiate battle sequence here
+                System.out.println();
+                System.out.println("┌────────────────────┐");
+                System.out.println("│       BATTLE       │");
+                System.out.println("└────────────────────┘");
+                battle.fight();
                 valid = false; // Exit the loop after handling the choice
             } else if (choice == 'n'){
                 System.out.println("\nYou chose to avoid the Forest Guardian, Elderthorn and head back to the previous area.");

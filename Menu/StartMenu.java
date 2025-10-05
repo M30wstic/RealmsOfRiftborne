@@ -14,16 +14,16 @@ public class StartMenu extends Narration {
         boolean play = true;
 
         while(play){
-            System.out.println("+------------------------------+");
-            System.out.println("|        Mystvale Academy      |");
-            System.out.println("+------------------------------+");
-            System.out.println("|    A Text-Based Adventure    |");
-            System.out.println("|  in a World of Sorcery and   |");
-            System.out.println("|         Shadowed Halls       |");
-            System.out.println("+------------------------------+");
-            System.out.println("|          1. Start Game       |");
-            System.out.println("|          2. Exit Game        |");
-            System.out.println("+------------------------------+");
+            System.out.println("+-----------------------------------------+");
+            System.out.println("|             Mystvale Academy            |");
+            System.out.println("+-----------------------------------------+");
+            System.out.println("|         A Text-Based Adventure          |");
+            System.out.println("|        in a World of Sorcery and        |");
+            System.out.println("|            Shadowed Halls               |");
+            System.out.println("+-----------------------------------------+");
+            System.out.println("|             1. Start Game               |");
+            System.out.println("|             2. Exit Game                |");
+            System.out.println("+-----------------------------------------+");
             System.out.print(">>> ");
 
             String startMenuChoice = scan.nextLine();

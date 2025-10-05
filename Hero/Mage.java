@@ -1,0 +1,8 @@
+package Hero;
+
+public class Mage extends Hero {
+    public Mage() {
+        super(4000, 550, 1000, 180, 100, 1, 0, "Selene Arclight", "Mage", "Wooden Staff", "Stellar Shard", "Chains of Starlight", "Astral Cataclysm");
+    }
+
+}
