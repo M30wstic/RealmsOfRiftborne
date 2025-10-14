@@ -8,9 +8,14 @@ import java.util.*;
 public class BattleMechanic {
     static Scanner scanner = new Scanner(System.in);
     static Random rand = new Random();
-    static BattleMechanic cd = new BattleMechanic();
+    static private int origHp;
+    static private int origMana;
+    static private int enemyOrigHp;
+    static private int enemyOrigMana;
 
     public void fight(Hero player, Boss enemy){
+        setOriginalStats(player, enemy);
+
         while(player.getHp() > 0 && enemy.getHp() > 0){
             // Player's turn
             System.out.println("\nPlayer HP: " + player.getHp() + " | Player Mana: " + player.getMana() + " || Enemy HP: " + enemy.getHp() + " | Enemy Mana: " + enemy.getMana());
@@ -44,6 +49,7 @@ public class BattleMechanic {
                 System.out.println("└────────────────────────────────────────┘");
                 System.out.println();
 
+                restoreStats(player, enemy);
                 return;
             }
 
@@ -62,6 +68,7 @@ public class BattleMechanic {
                 System.out.println("└────────────────────────────────────────┘");
                 System.out.println();
 
+                restoreStats(player, enemy);
                 return;
             }
         }
@@ -203,11 +210,33 @@ public class BattleMechanic {
         if (player.getCooldown2() > 0) player.setCooldown2(player.getCooldown2() - 1);
         if (player.getCooldownU() > 0) player.setCooldownU(player.getCooldownU() - 1);
     }
-
+  
     public static void reduceEnemyCooldown(Boss enemy){
         if (enemy.getCooldown1() > 0) enemy.setCooldown1(enemy.getCooldown1() - 1);
         if (enemy.getCooldown2() > 0) enemy.setCooldown2(enemy.getCooldown2() - 1);
         if (enemy.getCooldown3() > 0) enemy.setCooldown3(enemy.getCooldown3() - 1);
         if (enemy.getCooldownU() > 0) enemy.setCooldownU(enemy.getCooldownU() - 1);
+    }
+
+    public static void setOriginalStats(Hero player, Boss enemy) {
+        origHp = player.getHp();
+        origMana = player.getMana();
+        enemyOrigHp = enemy.getHp();
+        enemyOrigMana = enemy.getMana();
+    }
+
+    public static void restoreStats(Hero player, Boss enemy){
+        player.setHp(origHp);
+        player.setMana(origMana);
+        player.setCooldown1(0);
+        player.setCooldown2(0);
+        player.setCooldownU(0);
+
+        enemy.setHp(enemyOrigHp);
+        enemy.setMana(enemyOrigMana);
+        enemy.setCooldown1(0);
+        enemy.setCooldown2(0);
+        enemy.setCooldown3(0);
+        enemy.setCooldownU(0);
     }
 }
