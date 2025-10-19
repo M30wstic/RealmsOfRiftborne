@@ -1,8 +1,10 @@
 package Mobs;
 
+import Hero.Entity;
 import Hero.Hero;
+import java.text.DecimalFormat;
 
-public abstract class SwampRat extends Mobs {
+public class SwampRat extends Mobs {
     
     private int skillCd1 = 2;
     private int skillCd2 = 4;
@@ -13,8 +15,13 @@ public abstract class SwampRat extends Mobs {
         this.skillCd2 = 4;
     }
 
+    DecimalFormat df = new DecimalFormat("#,##0");
+
     @Override
-    public void basicAttack(Hero hero) {
+    public void basicAttack(Entity enemy, Hero hero) {
+        System.out.println(getName() + " used Basic Attack!");
+        
+
         double damage = getAttack() * 1.1;
 
         double manaRecovery = getManaCap() * 0.2;
@@ -26,17 +33,18 @@ public abstract class SwampRat extends Mobs {
             setMana(addMana);
         }
 
+        if(hero.dodgeEnemyAtk(hero, enemy)) return;
         int damageDealt = (int) Math.round(damage) - hero.getDefense()/2;
 
-        System.out.println(getName() + " used Basic Attack!");
-        System.out.println("Basic Attack deals " + damageDealt + " damage!");
-
+        System.out.println("Basic Attack deals " + df.format(damageDealt) + " damage!");
 
         hero.setHp(hero.getHp() - damageDealt);
     }
 
     @Override
-    public void skill1(Hero hero){
+    public void skill1(Entity enemy, Hero hero){
+        System.out.println(getName() + " used " + getSkill1() + "!");
+
         setCooldown1(skillCd1);
 
         double damage = getAttack() * 1.5;
@@ -44,41 +52,42 @@ public abstract class SwampRat extends Mobs {
         int manaReduce = getMana() - getManaCostSkill1();
         setMana(manaReduce);
 
+        if(hero.dodgeEnemyAtk(hero, enemy)) return;
         int damageDealt = (int) Math.round(damage) - hero.getDefense()/2;
 
-
-        System.out.println(getName() + " used " + getSkill1() + "!");
-        System.out.println(getSkill1() + " deals " + damageDealt + " damage!");
+        System.out.println(getSkill1() + " deals " + df.format(damageDealt) + " damage!");
 
 
         hero.setHp(hero.getHp() - damageDealt);
     }
 
     @Override
-    public void skill2(Hero hero){
-        setCooldown2(skillCd2);
+    public void skill2(Entity enemy, Hero hero){
+        System.out.println(getName() + " used " + getSkill2() + "!");
 
+        setCooldown2(skillCd2);
+        
+        
         double damage = getAttack() * 1.8;
 
         int manaReduce = getMana() - getManaCostSkill2();
         setMana(manaReduce);
-
+        
+        if(hero.dodgeEnemyAtk(hero, enemy)) return;
         int damageDealt = (int) Math.round(damage) - hero.getDefense()/2;
 
-
-        System.out.println(getName() + " used " + getSkill2() + "!");
-        System.out.println(getSkill2() + " deals " + damageDealt + " damage!");
+        System.out.println(getSkill2() + " deals " + df.format(damageDealt) + " damage!");
         
         hero.setHp(hero.getHp() - damageDealt);
     }
 
     @Override
-    public void skill3(Hero hero){
-        
+    public void skill3(Entity enemy, Hero hero){
+
     }
 
     @Override
-    public void ultimate(Hero hero){
+    public void ultimate(Entity enemy, Hero hero){
         
     }
 }

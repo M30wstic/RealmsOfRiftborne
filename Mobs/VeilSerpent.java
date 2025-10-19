@@ -4,14 +4,14 @@ import Hero.Entity;
 import Hero.Hero;
 import java.text.DecimalFormat;
 
-public class MudLurker extends Mobs {
-    private int skillCd1, skillCd2, skillCdU;
+public class VeilSerpent extends Mobs {
+    private int skillCd1, skillCd2;
 
-    public MudLurker() {        
-        super("Mud Lurker", 1500, 200, 100, 40, 5, 500, 400, "Mud Shot", "Burrow", "Quagmire", 100, 300, 600);
+    public VeilSerpent() {
+        super("Veil Serpent", 2500, 350, 150, 120, 8, 250, 800, "Phantom Bite", "Mist Shrowd", "Unknown", 80, 250, 600);
+        
         this.skillCd1 = 4;
-        this.skillCd2 = 6;  
-        this.skillCdU = 8;
+        this.skillCd2 = 6;
     }
 
     DecimalFormat df = new DecimalFormat("#,##0");
@@ -87,20 +87,7 @@ public class MudLurker extends Mobs {
 
     @Override
     public void ultimate(Entity enemy, Hero hero){
-        System.out.println(getName() + " used " + getUltimate() + "!");
-        setCooldownU(skillCdU);
-
-        double damage = getAttack() * 2.3;
-
-        int manaReduce = getMana() - getManaCostUltimate();
-        setMana(manaReduce);
-
-        int damageDealt = (int) Math.round(damage) - hero.getDefense()/2;
-
-        System.out.println(getUltimate() + " deals " + df.format(damageDealt) + " damage!");
         
-        hero.setHp(hero.getHp() - damageDealt);
     }
-    
     
 }

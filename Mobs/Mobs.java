@@ -2,8 +2,9 @@ package Mobs;
 
 import Hero.Entity;
 import Hero.Hero;
+import java.util.Random;
 
-public abstract class Mobs extends Entity {
+public class Mobs extends Entity {
     private String name;
     private int hp;
     private int attack;
@@ -14,9 +15,6 @@ public abstract class Mobs extends Entity {
     private int manaCap;
     private String skill1, skill2, ultimate;
     private int manaCostSkill1, manaCostSkill2, manaCostUltimate;
-    private int cooldown1 = 0;
-    private int cooldown2 = 0;
-    private int cooldownU = 0;
     private int skillCd1, skillCd2, skillCdU;
     
 
@@ -37,8 +35,10 @@ public abstract class Mobs extends Entity {
         this.manaCostUltimate = manaCostUltimate;
     }
     
-    @Override
-    public void basicAttack(Hero hero) {
+    
+    public void basicAttack(Entity enemy, Hero hero) {
+        System.out.println(getName() + " used Basic Attack!");
+        
         double damage = getAttack() * 1.1;
 
         double manaRecovery = getManaCap() * 0.2;
@@ -50,72 +50,88 @@ public abstract class Mobs extends Entity {
             setMana(addMana);
         }
 
+        if(hero.dodgeEnemyAtk(hero, enemy)) return;
         int damageDealt = (int) Math.round(damage) - hero.getDefense()/2;
 
-        System.out.println(getName() + " used Basic Attack!");
         System.out.println("Basic Attack deals " + damageDealt + " damage!");
 
 
         hero.setHp(hero.getHp() - damageDealt);
     }
 
-    @Override
-    public void skill1(Hero hero){
+    public void skill1(Entity enemy, Hero hero){
+        System.out.println(getName() + " used " + skill1 + "!");
+
         setCooldown1(skillCd1);
+        
 
         double damage = getAttack() * 1.5;
 
-        int manaReduce = getMana() - getManaCostSkill1();
+        int manaReduce = getMana() - manaCostSkill1;
         setMana(manaReduce);
 
+        if(hero.dodgeEnemyAtk(hero, enemy)) return;
         int damageDealt = (int) Math.round(damage) - hero.getDefense()/2;
 
-
-        System.out.println(getName() + " used " + getSkill1() + "!");
-        System.out.println(getSkill1() + " deals " + damageDealt + " damage!");
+        System.out.println(skill1 + " deals " + damageDealt + " damage!");
 
 
         hero.setHp(hero.getHp() - damageDealt);
     }
 
-    @Override
-    public void skill2(Hero hero){
+    public void skill2(Entity enemy, Hero hero){
+        System.out.println(getName() + " used " + skill2 + "!");
+
         setCooldown2(skillCd2);
+        
 
         double damage = getAttack() * 1.8;
 
-        int manaReduce = getMana() - getManaCostSkill2();
+        int manaReduce = getMana() - manaCostSkill2;
         setMana(manaReduce);
 
+        if(hero.dodgeEnemyAtk(hero, enemy)) return;
         int damageDealt = (int) Math.round(damage) - hero.getDefense()/2;
 
 
-        System.out.println(getName() + " used " + getSkill2() + "!");
-        System.out.println(getSkill2() + " deals " + damageDealt + " damage!");
+        System.out.println(skill2 + " deals " + damageDealt + " damage!");
         
         hero.setHp(hero.getHp() - damageDealt);
     }
 
-    @Override
-    public void skill3(Hero hero){
+    public void skill3(Entity enemy, Hero hero){
         
     }
 
-    @Override
-    public void ultimate(Hero hero){
+    public void ultimate(Entity enemy, Hero hero){
+        System.out.println(getName() + " used " + ultimate + "!");
+
         setCooldownU(skillCdU);
 
         double damage = getAttack() * 2.3;
 
-        int manaReduce = getMana() - getManaCostUltimate();
+        int manaReduce = getMana() - manaCostUltimate;
         setMana(manaReduce);
 
         int damageDealt = (int) Math.round(damage) - hero.getDefense()/2;
 
-        System.out.println(getName() + " used " + getUltimate() + "!");
-        System.out.println(getUltimate() + " deals " + damageDealt + " damage!");
+        System.out.println(ultimate + " deals " + damageDealt + " damage!");
         
         hero.setHp(hero.getHp() - damageDealt);
+    }
+
+    // Dodge Hero attack method || Enemy dodges
+    public boolean dodgeHeroAtk(Entity defender, Hero attacker){
+        Random rand = new Random();
+        double dodgeChance = (double) defender.getSpeed() / (defender.getSpeed() + attacker.getSpeed()) * 0.5;
+        double roll = rand.nextDouble(0.0, 1.0);
+
+        if (roll < dodgeChance) {
+            System.out.println(defender.getName() + " dodged the attack!");
+            return true;
+        }
+
+        return false;
     }
     
     //setters
@@ -136,6 +152,15 @@ public abstract class Mobs extends Entity {
     }
     public void setMana(int mana) {
         this.mana = mana;
+    }
+    public void setSkill1(String skill1) {
+        this.skill1 = skill1;
+    }
+    public void setSkill2(String skill2) {
+        this.skill2 = skill2;
+    }
+    public void setUltimate(String ultimate) {
+        this.ultimate = ultimate;
     }
 
     //getters
@@ -159,5 +184,17 @@ public abstract class Mobs extends Entity {
     }
     public int getMana() {
         return mana;
+    }
+    public int getManaCap() {
+        return manaCap;
+    }
+    public String getSkill1() {
+        return skill1;
+    }
+    public String getSkill2() {
+        return skill2;
+    }
+    public String getUltimate() {
+        return ultimate;
     }
 }
