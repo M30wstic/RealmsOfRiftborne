@@ -102,6 +102,17 @@ public class HollowKing extends Mobs {
         int damageDealt = (int) Math.round(damage) - hero.getDefense()/2;
 
         System.out.println(getUltimate() + " deals " + df.format(damageDealt) + " damage!");
+
+        int prevPoison = hero.getPoison();
+        hero.setPoison(prevPoison + 2); 
+        int totalPoison = hero.getPoison();
+
+        if (prevPoison > 0) {
+            System.out.println("Poison intensifies! (" + hero.getName() + " now has Poison " + totalPoison + ")");
+        } else {
+            System.out.println(hero.getName() + " is poisoned! (Poison 2)");
+            System.out.println(hero.getName() + " will take poison damage over time!");
+        }
         
         hero.setHp(hero.getHp() - damageDealt);
     }

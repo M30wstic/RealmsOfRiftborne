@@ -1,49 +1,74 @@
 package BattleMechanics;
 
 import Hero.*;
+import java.text.DecimalFormat;
 import java.util.*;
+
 // This only works for elite mobs
 public class EliteBattleMechanic {
     static Scanner scanner = new Scanner(System.in);
     static Random rand = new Random();
-    static private int origHp;
-    static private int origMana;
+    private int origHp;
+    private int origMana;
+    int round = 1;
+    DecimalFormat df = new DecimalFormat("#,##0");
 
     public boolean fight(Hero player, Entity enemy){
         enemy.setManaCap(enemy.getMana());
+        enemy.setHpCap(enemy.getHp());
         setOriginalStats(player);
+        System.out.println();
+        System.out.println("┌────────────────────┐");
+        System.out.println("│       BATTLE       │");
+        System.out.println("└────────────────────┘");
+        int choice = -1;
 
         while(player.getHp() > 0 && enemy.getHp() > 0){
+            while(true){
             // Player's turn
-            System.out.println("\nPlayer HP: " + player.getHp() + " | Player Mana: " + player.getMana() + " || Enemy HP: " + enemy.getHp() + " | Enemy Mana: " + enemy.getMana());
-            System.out.println("+--------------------------------------------------------------------------+");
+            System.out.println("\nPlayer HP: " + df.format(player.getHp()) + " | Player Mana: " + df.format(player.getMana()) + " || Enemy HP: " + df.format(enemy.getHp()) + " | Enemy Mana: " + df.format(enemy.getMana()));
+            System.out.println("+--------------------------------   ROUND " + round + "  ------------------------------------+");
             System.out.println("Choose your attack:");
             System.out.println();
             System.out.println("1. Basic Attack");
             System.out.println("2. Skill 1 - "+ player.getSkill1() + " (Mana Cost: " + player.scaledCost(player.getManaCostSkill1()) + ") (Cooldown: " + player.getCooldown1() + ")");
             System.out.println("3. Skill 2 - "+ player.getSkill2() + " (Mana Cost: " + player.scaledCost(player.getManaCostSkill2()) + ") (Cooldown: " + player.getCooldown2() + ")");
             System.out.println("4. Ultimate - "+ player.getUltimate() + " (Mana Cost: " + player.scaledCost(player.getManaCostUltimate()) + ") (Cooldown: " + player.getCooldownU() + ")");
-            System.out.println("+--------------------------------------------------------------------------+");
+            System.out.println("+--------------------------------------------------------------------------------+");
             System.out.print(">>> ");
-            int choice = scanner.nextInt();
 
-            System.out.println();
-
-            boolean valid = castAttack(player, enemy, choice);
-
-            if (!valid) {
-                // Skip enemy turn, let player retry instead
-                continue;
+                try {
+                    choice = Integer.parseInt(scanner.nextLine().trim());
+                    if (choice >= 1 && choice <= 4) break;
+                    else System.out.println("\nPlease select a valid choice [1-4]");
+                } catch (Exception e) {
+                    System.out.println("\nInvalid input! Please enter a number between 1 and 4.");
+                }
             }
 
+            System.out.println();
+            boolean valid = true;
+
+            System.out.println("Player's Turn:");
+            if (player.getStunned() <= 0) {
+                valid = castAttack(player, enemy, choice);
+
+                if (!valid) {
+                    // Skip enemy turn, let player retry instead
+                    continue;
+                }
+
+            }
+
+            reducePlayerNegativeEffects(player);
             reducePlayerCooldown(player);
             
             // Check if enemy is defeated
             if(enemy.getHp() <= 0){
                 System.out.println();
-                System.out.println("┌────────────────────────────────────────┐");
-                System.out.println("│        Enemy have been defeated!       │");
-                System.out.println("└────────────────────────────────────────┘");
+                System.out.println("┌───────────────────────────────────────┐");
+                System.out.println("│        Enemy has been defeated!       │");
+                System.out.println("└───────────────────────────────────────┘");
                 System.out.println();
 
                 restoreStats(player);
@@ -52,9 +77,14 @@ public class EliteBattleMechanic {
 
             System.out.println();
 
-            // Enemy's turn
-            enemyCastAttack(player, enemy);
             
+            // Enemy's turn
+            System.out.println("Enemy's turn:");
+            if(enemyValid(enemy)){    
+                enemyCastAttack(player, enemy);
+            }
+
+            reduceEnemyNegativeEffects(enemy);
             reduceEnemyCooldown(enemy);
 
             // Check if player is defeated
@@ -68,12 +98,13 @@ public class EliteBattleMechanic {
                 restoreStats(player);
                 break;
             }
+            round++;
+            System.out.println();
         }
         return false;
     }
 
     public static boolean castAttack (Hero player, Entity enemy, int choice) {
-        System.out.println("Player's Turn:");
 
         switch (choice) {
             case 1:
@@ -128,10 +159,8 @@ public class EliteBattleMechanic {
     }
 
     public static void enemyCastAttack(Hero player, Entity enemy) { 
-        System.out.println("Enemy's turn:");
-
         while (true) { // loop until enemy does a valid action
-            int choice = rand.nextInt(1, 5); // Random choice between 1 and 4
+            int choice = rand.nextInt(4) + 1; // Random choice between 1 and 4
 
             switch (choice) {
                 case 1:
@@ -181,17 +210,61 @@ public class EliteBattleMechanic {
         if (enemy.getCooldownU() > 0) enemy.setCooldownU(enemy.getCooldownU() - 1);
     }
 
-    public static void setOriginalStats(Hero player) {
-        origHp = player.getHp();
-        origMana = player.getMana();
+    public void setOriginalStats(Hero player) {
+        this.origHp = player.getHp();
+        this.origMana = player.getMana();
         player.setManaCap(player.getMana());
     }
 
-    public static void restoreStats(Hero player){
+    public void restoreStats(Hero player){
         player.setHp(origHp);
         player.setMana(origMana);
         player.setCooldown1(0);
         player.setCooldown2(0);
         player.setCooldownU(0);
+        player.setStun(0);
+        player.setPoison(0);
+        round = 1;
+    }
+    
+    public static boolean enemyValid(Entity enemy) {
+        if (enemy.getStunned() > 0) {
+            System.out.println(enemy.getName() + " is stunned and cannot move! (Stun " + enemy.getStunned() + ")");
+            return false;
+        }
+
+
+        if (enemy.getDisabled() > 0) {
+            System.out.println(enemy.getName() + " is exhausted and cannot move! (Exhausted " + enemy.getDisabled() + ")");
+            return false;
+        }
+
+        return true;
+    }
+
+
+    public void reducePlayerNegativeEffects(Hero player){
+        if(player.getStunned() > 0){
+            System.out.println(player.getName() + " is stunned for " + player.getStunned() + " turn(s)!");
+        }
+
+        if (player.getPoison() > 0) {
+            int poisonDmg = (int)(player.getHp() * 0.05);
+            player.setHp(player.getHp() - poisonDmg);
+            System.out.println(player.getName() + " suffers " + poisonDmg + " poison damage!");
+            player.setPoison(player.getPoison() - 1);
+        }
+
+        if(player.getStunned() > 0) player.setStun(player.getStunned() - 1);
+        if(player.getStunned() < 0) player.setStun(0);
+        if(player.getPoison() < 0) player.setPoison(0);
+    }
+
+    public void reduceEnemyNegativeEffects(Entity enemy){
+        if (enemy.getStunned() > 0) enemy.setStun(enemy.getStunned() - 1);
+        if (enemy.getDisabled() > 0) enemy.setDisabled(enemy.getDisabled() - 1);
+
+        if (enemy.getStunned() < 0) enemy.setStun(0);
+        if (enemy.getDisabled() < 0) enemy.setDisabled(0);
     }
 }

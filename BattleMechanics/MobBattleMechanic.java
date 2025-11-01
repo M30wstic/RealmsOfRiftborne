@@ -1,48 +1,72 @@
 package BattleMechanics;
 
 import Hero.*;
+import java.text.DecimalFormat;
 import java.util.*;
-// This only works for mob
+
+// This only works for mobs
 public class MobBattleMechanic {
     static Scanner scanner = new Scanner(System.in);
     static Random rand = new Random();
-    static private int origHp;
-    static private int origMana;
+    private int origHp;
+    private int origMana;
+    int round = 1;
+    DecimalFormat df = new DecimalFormat("#,##0");
 
-    public boolean fight(Hero player, Entity enemy){
+    public boolean fight(Hero player, Entity enemy) {
         enemy.setManaCap(enemy.getMana());
         setOriginalStats(player);
 
-        while(player.getHp() > 0 && enemy.getHp() > 0){
-            // Player's turn
-            System.out.println("\nPlayer HP: " + player.getHp() + " | Player Mana: " + player.getMana() + " || Enemy HP: " + enemy.getHp() + " | Enemy Mana: " + enemy.getMana());
-            System.out.println("+--------------------------------------------------------------------------+");
-            System.out.println("Choose your attack:");
-            System.out.println();
-            System.out.println("1. Basic Attack");
-            System.out.println("2. Skill 1 - "+ player.getSkill1() + " (Mana Cost: " + player.scaledCost(player.getManaCostSkill1()) + ") (Cooldown: " + player.getCooldown1() + ")");
-            System.out.println("3. Skill 2 - "+ player.getSkill2() + " (Mana Cost: " + player.scaledCost(player.getManaCostSkill2()) + ") (Cooldown: " + player.getCooldown2() + ")");
-            System.out.println("4. Ultimate - "+ player.getUltimate() + " (Mana Cost: " + player.scaledCost(player.getManaCostUltimate()) + ") (Cooldown: " + player.getCooldownU() + ")");
-            System.out.println("+--------------------------------------------------------------------------+");
-            System.out.print(">>> ");
-            int choice = scanner.nextInt();
+        System.out.println();
+        System.out.println("┌────────────────────┐");
+        System.out.println("│       BATTLE       │");
+        System.out.println("└────────────────────┘");
 
-            System.out.println();
+        int choice = -1;
 
-            boolean valid = castAttack(player, enemy, choice);
+        while (player.getHp() > 0 && enemy.getHp() > 0) {
+            while (true) {
+                System.out.println("\nPlayer HP: " + df.format(player.getHp()) +  " | Player Mana: " + df.format(player.getMana()) +  " || Enemy HP: " + df.format(enemy.getHp()) + " | Enemy Mana: " + df.format(enemy.getMana()));
+                System.out.println("+-------------------------------   ROUND " + round + "  --------------------------------+");
+                System.out.println("Choose your attack:");
+                System.out.println();
+                System.out.println("1. Basic Attack");
+                System.out.println("2. Skill 1 - " + player.getSkill1() + " (Mana Cost: " + player.scaledCost(player.getManaCostSkill1()) + ") (Cooldown: " + player.getCooldown1() + ")");
+                System.out.println("3. Skill 2 - " + player.getSkill2() + " (Mana Cost: " + player.scaledCost(player.getManaCostSkill2()) + ") (Cooldown: " + player.getCooldown2() + ")");
+                System.out.println("4. Ultimate - " + player.getUltimate() + " (Mana Cost: " + player.scaledCost(player.getManaCostUltimate()) + ") (Cooldown: " + player.getCooldownU() + ")");
+                System.out.println("+--------------------------------------------------------------------------------+");
+                System.out.print(">>> ");
 
-            if (!valid) {
-                // Skip enemy turn, let player retry instead
-                continue;
+                try {
+                    choice = Integer.parseInt(scanner.nextLine().trim());
+                    if (choice >= 1 && choice <= 4) break;
+                    else System.out.println("\nPlease select a valid choice [1-4]");
+                } catch (Exception e) {
+                    System.out.println("\nInvalid input! Please enter a number between 1 and 4.");
+                }
             }
 
+            System.out.println();
+            boolean valid = true;
+
+            System.out.println("Player's Turn:");
+            if (player.getStunned() <= 0) {
+                valid = castAttack(player, enemy, choice);
+
+                if (!valid) {
+                    // Skip enemy turn, let player retry instead
+                    continue;
+                }
+            }
+
+            reducePlayerNegativeEffects(player);
             reducePlayerCooldown(player);
-            
+
             // Check if enemy is defeated
-            if(enemy.getHp() <= 0){
+            if (enemy.getHp() <= 0) {
                 System.out.println();
                 System.out.println("┌────────────────────────────────────────┐");
-                System.out.println("│        Enemy have been defeated!       │");
+                System.out.println("│        Enemy has been defeated!        │");
                 System.out.println("└────────────────────────────────────────┘");
                 System.out.println();
 
@@ -53,28 +77,33 @@ public class MobBattleMechanic {
             System.out.println();
 
             // Enemy's turn
-            enemyCastAttack(player, enemy);
-            
+            System.out.println("Enemy's Turn:");
+            if (enemyValid(enemy)) {
+                enemyCastAttack(player, enemy);
+            }
+
+            reduceEnemyNegativeEffects(enemy);
             reduceEnemyCooldown(enemy);
 
             // Check if player is defeated
-            if(player.getHp() <= 0){
+            if (player.getHp() <= 0) {
                 System.out.println();
                 System.out.println("┌────────────────────────────────────────┐");
-                System.out.println("│        You have been defeated!         │");
+                System.out.println("│         You have been defeated!        │");
                 System.out.println("└────────────────────────────────────────┘");
                 System.out.println();
 
                 restoreStats(player);
                 break;
             }
+
+            round++;
+            System.out.println();
         }
         return false;
     }
 
-    public static boolean castAttack (Hero player, Entity enemy, int choice) {
-        System.out.println("Player's Turn:");
-
+    public static boolean castAttack(Hero player, Entity enemy, int choice) {
         switch (choice) {
             case 1:
                 player.basicAttack(player, enemy);
@@ -124,66 +153,98 @@ public class MobBattleMechanic {
                 return false;
         }
 
-        return true; // valid attack
+        return true;
     }
 
-    public static void enemyCastAttack(Hero player, Entity enemy) { 
-        System.out.println("Enemy's turn:");
-
-        while (true) { // loop until enemy does a valid action
-            int choice = rand.nextInt(1, 4); // Random choice between 1 and 3
+    public static void enemyCastAttack(Hero player, Entity enemy) {
+        while (true) { // loop until valid action
+            int choice = rand.nextInt(3) + 1; // Random 1–3
 
             switch (choice) {
                 case 1:
-                    // Basic attack is always valid
                     enemy.basicAttack(enemy, player);
                     break;
 
                 case 2:
                     if (enemy.getMana() >= enemy.getManaCostSkill1() && enemy.getCooldown1() == 0) {
                         enemy.skill1(enemy, player);
-                    } else {
-                        continue; // try another choice
-                    }
+                    } else continue;
                     break;
 
                 case 3:
                     if (enemy.getMana() >= enemy.getManaCostSkill2() && enemy.getCooldown2() == 0) {
                         enemy.skill2(enemy, player);
-                    } else {
-                        continue;
-                    }
+                    } else continue;
                     break;
-
             }
-
-            // If we reached here → attack was valid
-            break;
+            break; // valid attack done
         }
     }
 
-    public static void reducePlayerCooldown(Hero player){
+    public static void reducePlayerCooldown(Hero player) {
         if (player.getCooldown1() > 0) player.setCooldown1(player.getCooldown1() - 1);
         if (player.getCooldown2() > 0) player.setCooldown2(player.getCooldown2() - 1);
         if (player.getCooldownU() > 0) player.setCooldownU(player.getCooldownU() - 1);
     }
-  
-    public static void reduceEnemyCooldown(Entity enemy){
+
+    public static void reduceEnemyCooldown(Entity enemy) {
         if (enemy.getCooldown1() > 0) enemy.setCooldown1(enemy.getCooldown1() - 1);
         if (enemy.getCooldown2() > 0) enemy.setCooldown2(enemy.getCooldown2() - 1);
     }
 
-    public static void setOriginalStats(Hero player) {
-        origHp = player.getHp();
-        origMana = player.getMana();
+    public void setOriginalStats(Hero player) {
+        this.origHp = player.getHp();
+        this.origMana = player.getMana();
         player.setManaCap(player.getMana());
     }
 
-    public static void restoreStats(Hero player){
+    public void restoreStats(Hero player) {
         player.setHp(origHp);
         player.setMana(origMana);
         player.setCooldown1(0);
         player.setCooldown2(0);
         player.setCooldownU(0);
+        player.setStun(0);
+        player.setPoison(0);
+        round = 1;
+    }
+
+    public static boolean enemyValid(Entity enemy) {
+        if (enemy.getStunned() > 0) {
+            System.out.println(enemy.getName() + " is stunned and cannot move! (Stun " + enemy.getStunned() + ")");
+            return false;
+        }
+
+        if (enemy.getDisabled() > 0) {
+            System.out.println(enemy.getName() + " is exhausted and cannot move! (Exhausted " + enemy.getDisabled() + ")");
+            return false;
+        }
+
+        return true;
+    }
+
+    public void reducePlayerNegativeEffects(Hero player) {
+        if (player.getStunned() > 0) {
+            System.out.println(player.getName() + " is stunned for " + player.getStunned() + " turn(s)!");
+        }
+
+        if (player.getPoison() > 0) {
+            int poisonDmg = (int) (player.getHp() * 0.05);
+            player.setHp(player.getHp() - poisonDmg);
+            System.out.println(player.getName() + " suffers " + poisonDmg + " poison damage!");
+            player.setPoison(player.getPoison() - 1);
+        }
+
+        if (player.getStunned() > 0) player.setStun(player.getStunned() - 1);
+        if (player.getStunned() < 0) player.setStun(0);
+        if (player.getPoison() < 0) player.setPoison(0);
+    }
+
+    public void reduceEnemyNegativeEffects(Entity enemy) {
+        if (enemy.getStunned() > 0) enemy.setStun(enemy.getStunned() - 1);
+        if (enemy.getDisabled() > 0) enemy.setDisabled(enemy.getDisabled() - 1);
+
+        if (enemy.getStunned() < 0) enemy.setStun(0);
+        if (enemy.getDisabled() < 0) enemy.setDisabled(0);
     }
 }

@@ -98,6 +98,13 @@ public class MudLurker extends Mobs {
         int damageDealt = (int) Math.round(damage) - hero.getDefense()/2;
 
         System.out.println(getUltimate() + " deals " + df.format(damageDealt) + " damage!");
+
+        if(hero.getStunned() > 0) {
+            System.out.println("Paralysis renewed! You remain stunned for another turn. (Stun refreshed to 1 turn)");
+        } else {
+            System.out.println("You've been stunned! (Stun 1)");
+        }
+        hero.setStun(1);
         
         hero.setHp(hero.getHp() - damageDealt);
     }
