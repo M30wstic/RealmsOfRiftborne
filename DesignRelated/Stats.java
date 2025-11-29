@@ -6,7 +6,7 @@ public class Stats {
 
     public void sackOfGoldAfterTraining(Hero hero) {
 
-        int gold = 2500;
+        int gold = 2500; // for testing
 
         System.out.println("                ░░░░░█    ░░░░░░  ░░      ░█    ░░░░    ░░░░░█    ░░░░░█      ░░░░░█");
         System.out.println("                ░░    ░░  ░█      ░░  ░░  ░█  ░░    █░  ░░    ░░  ░░    ░░  ░█");
@@ -41,9 +41,9 @@ public class Stats {
 
     }
 
-    public void rewards(Hero hero) {
-        int gold = 5000; // for testing
-        int xp = 5000; // for testing
+    public void rewards(Hero hero, int gold, int xp) {
+        // int gold = 5000; // for testing
+        // int xp = 5000; // for testing
 
         System.out.println("                ░░░░░█    ░░░░░░  ░░      ░█    ░░░░    ░░░░░█    ░░░░░█      ░░░░░█");
         System.out.println("                ░░    ░░  ░█      ░░  ░░  ░█  ░░    █░  ░░    ░░  ░░    ░░  ░█");
@@ -74,7 +74,7 @@ public class Stats {
         System.out.println("      ░░░░                                ");
         System.out.println("          ░░      ░░                 ");
         System.out.println("            ░░░░░░                      ");
-
+        hero.levelUp(xp);
     }
 
 }

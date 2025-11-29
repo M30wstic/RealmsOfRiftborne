@@ -2,6 +2,7 @@ package Area;
 import BattleMechanics.*;
 import Boss.*;
 import Hero.*;
+import DesignRelated.*;
 import Mobs.*;
 import java.text.DecimalFormat;
 import java.util.*;
@@ -12,9 +13,11 @@ public class ForsakenLands {
     DecimalFormat df = new DecimalFormat("#,##0");
     MobBattleMechanic mobBattle = new MobBattleMechanic();
     EliteBattleMechanic eliteBattle = new EliteBattleMechanic();
+    Stats reward = new Stats();
     boolean retreat = false;
     boolean explore = true;
     boolean exit = false;
+    int goldGained, expGained;
     int currentArea = 0;
 
     public void enter(Hero hero) {
@@ -110,6 +113,9 @@ public class ForsakenLands {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
                     // reward here
+                    goldGained = rand.nextInt(700, 750); // random gold between 700 and 750
+                    expGained = rand.nextInt(165, 210); // random exp between 165 and 210
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You are rescued by fellow adventurers and taken back to the academy.");
                     currentArea = 0;
@@ -128,7 +134,9 @@ public class ForsakenLands {
                 if(MobBattleMechanic.run) {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
-                    // reward here
+                    goldGained = rand.nextInt(700, 750); // random gold between 700 and 750
+                    expGained = rand.nextInt(165, 210); // random exp between 165 and 210
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You are rescued by fellow adventurers and taken back to the academy.");
                     currentArea = 0;
@@ -197,6 +205,9 @@ public class ForsakenLands {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
                     // reward here
+                    goldGained = rand.nextInt(850, 900); // random gold between 850 and 900
+                    expGained = rand.nextInt(200, 245); // random exp between 200 and 245
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You are rescued by fellow adventurers and taken back to the academy.");
                     currentArea = 0;
@@ -216,6 +227,9 @@ public class ForsakenLands {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
                     // reward here
+                    goldGained = rand.nextInt(850, 900); // random gold between 850 and 900
+                    expGained = rand.nextInt(200, 245); // random exp between 200 and 245
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You are rescued by fellow adventurers and taken back to the academy.");
                     currentArea = 0;
@@ -279,6 +293,9 @@ public class ForsakenLands {
                     EliteBattleMechanic.run = false;
                 } else if (heroWon) {
                     // reward here
+                    goldGained = rand.nextInt(1000, 1200); // random gold between 1000 and 1200
+                    expGained = rand.nextInt(250, 300); // random exp between 250 and 300
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You are rescued by fellow adventurers and taken back to the academy.");
                     currentArea = 0;
@@ -328,21 +345,10 @@ public class ForsakenLands {
                     if(BattleMechanic.run) {
                         BattleMechanic.run = false;
                     } else if (heroWon) {
-                        goldGained = (int) Math.round(2500 * rand.nextDouble(1.50, 1.60)); // random multiplier 1.50 - 1.59
-                        expGained = (int) Math.round(450 * rand.nextDouble(1.20, 1.30)); // random multiplier 1.20 - 1.29
-                        //temp design for drop
-                        System.out.println("┌────────────────────────────────────────────────┐");
-                        System.out.println("│                CONGRATULATIONS!!!              │");
-                        System.out.println("│                                                │");
-                        System.out.println("│                                                │");
-                        System.out.println("│    You have obtained:                          │");
-                        System.out.println("│                                                │");
-                        System.out.println("│               Gold: " + df.format(goldGained) + "                      │");
-                        System.out.println("│               Exp : " + df.format(expGained) + "                        │");
-                        System.out.println("│                                                │");
-                        System.out.println("│                                                │");
-                        System.out.println("└────────────────────────────────────────────────┘");
-                        hero.levelUp(expGained);
+                        goldGained = (int) Math.round(5000 * rand.nextDouble(1.50, 1.60)); // random multiplier 1.50 - 1.59
+                        expGained = (int) Math.round(700 * rand.nextDouble(1.20, 1.30)); // random multiplier 1.20 - 1.29
+                        reward.rewards(hero, goldGained, expGained);
+                        System.out.println();
                         System.out.println("Azrael falls... his wings crumble to dust, and the land grows silent once more.");
                         System.out.println();
                         System.out.println("You have conquered the Forsaken Lands.");

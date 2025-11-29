@@ -11,6 +11,7 @@ public class Test extends Hero {
         "Delete", "Perish", "Judgement", 
         0, 0, 0, 
         999999, 999999, 999999);
+        setMaxHp(999999);
         this.skillCd1 = 0;
         this.skillCd2 = 0;
         this.skillCdU = 0;

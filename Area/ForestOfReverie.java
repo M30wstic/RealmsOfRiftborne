@@ -1,6 +1,7 @@
 package Area;
 import BattleMechanics.*;
 import Boss.*;
+import DesignRelated.Stats;
 import Hero.*;
 import Mobs.*;
 import Narration.*; // Javines | Plot
@@ -13,10 +14,12 @@ public class ForestOfReverie {
     DecimalFormat df = new DecimalFormat("#,##0");
     MobBattleMechanic mobBattle = new MobBattleMechanic();
     EliteBattleMechanic eliteBattle = new EliteBattleMechanic();   
-    MagePlot magePlotHandler = new MagePlot(); // Javines | Plot 
+    MagePlot magePlotHandler = new MagePlot(); // Javines | Plot
+    Stats reward = new Stats();
     boolean retreat = false;
     boolean explore = true;
     boolean exit = false;
+    int goldGained, expGained;
     int currentArea = 0;
 
     public void enter(Hero hero) {
@@ -115,6 +118,9 @@ public class ForestOfReverie {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
                     // reward here
+                    goldGained = rand.nextInt(300, 400); // random gold between 300 and 400
+                    expGained = rand.nextInt(75, 100); // random exp between 75 and 100
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You have sustained serious injuries, but fortunately, a group of students arrived in time to rescue you.");
                     currentArea = 0;
@@ -134,6 +140,9 @@ public class ForestOfReverie {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
                     // reward here
+                    goldGained = rand.nextInt(300, 400); // random gold between 300 and 400
+                    expGained = rand.nextInt(75, 100); // random exp between 75 and 100
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You have sustained serious injuries, but fortunately, a group of students arrived in time to rescue you.");
                     currentArea = 0;
@@ -205,6 +214,9 @@ public class ForestOfReverie {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
                     // reward here
+                    goldGained = rand.nextInt(450, 500); // random gold between 450 and 500
+                    expGained = rand.nextInt(85, 115); // random exp between 85 and 115
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You have sustained serious injuries, but fortunately, a group of students arrived in time to rescue you.");
                     currentArea = 0;
@@ -224,6 +236,9 @@ public class ForestOfReverie {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
                     // reward here
+                    goldGained = rand.nextInt(450, 500); // random gold between 450 and 500
+                    expGained = rand.nextInt(85, 115); // random exp between 85 and 115
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You have sustained serious injuries, but fortunately, a group of students arrived in time to rescue you.");
                     currentArea = 0;
@@ -276,8 +291,15 @@ public class ForestOfReverie {
 
     public void exploreInnerArea(Hero hero) {
         // This is my current currentArea = 3
-        int goldGained, expGained;
         BattleMechanic battle = new BattleMechanic();
+        System.out.println("┌────────────────────────────────────────────────────────────────────────┐");
+        System.out.println("│    /\\  /\\  /\\              FOREST OF REVERIE   *  .  *   /\\* /\\ ./\\* . │");
+        System.out.println("│   /  \\/  \\/  \\                                   * .  * /  \\/  \\/  \\  *│");
+        System.out.println("│  /_  _\\  /_  _\\                               DANGER! */_  _\\  /_  _\\. │");
+        System.out.println("│  / __ \\__/ __ \\  - - O - - - - - - O - - - - - - O  .  / __ \\__/ __ \\ *│");
+        System.out.println("│  /_  _\\  /_  _\\                                 You   ./_  _\\  /_  _\\ .│");
+        System.out.println("│    ||  ||  ||                                     .   *  ||* || .||  * │");
+        System.out.println("└────────────────────────────────────────────────────────────────────────┘");
 
         System.out.println();
         if(explore){
@@ -288,6 +310,9 @@ public class ForestOfReverie {
                     EliteBattleMechanic.run = false;
                 } else if (heroWon) {
                     // reward here
+                    goldGained = rand.nextInt(700, 750); // random gold between 700 and 750
+                    expGained = rand.nextInt(125, 150); // random exp between 125 and 150
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You have sustained serious injuries, but fortunately, a group of students arrived in time to rescue you.");
                     currentArea = 0; // automatically exits the FOREST OF REVERIE
@@ -335,22 +360,9 @@ public class ForestOfReverie {
                     if(BattleMechanic.run) {
                         BattleMechanic.run = false;
                     } else if (heroWon) {
-
                         goldGained = (int) Math.round(2500 * rand.nextDouble(1.50, 1.60)); // random multiplier 1.50 - 1.59
                         expGained = (int) Math.round(450 * rand.nextDouble(1.20, 1.30)); // random multiplier 1.20 - 1.29
-                        //temp design for drop
-                        System.out.println("┌────────────────────────────────────────────────┐");
-                        System.out.println("│                CONGRATULATIONS!!!              │");
-                        System.out.println("│                                                │");
-                        System.out.println("│                                                │");
-                        System.out.println("│    You have obtained:                          │");
-                        System.out.println("│                                                │");
-                        System.out.println("│               Gold: " + df.format(goldGained) + "                      │");
-                        System.out.println("│               Exp : " + df.format(expGained) + "                        │");
-                        System.out.println("│                                                │");
-                        System.out.println("│                                                │");
-                        System.out.println("└────────────────────────────────────────────────┘");
-                        hero.levelUp(expGained);
+                        reward.rewards(hero, goldGained, expGained);
                         System.out.println("You have slain the enemy that guards the forest, every living being within the forest now fears you.");
                         System.out.println();
 

@@ -1,6 +1,7 @@
 package Area;
 import BattleMechanics.*;
 import Boss.*;
+import DesignRelated.*;
 import Hero.*;
 import Mobs.*;
 import Narration.*; // Javines | Plot 
@@ -14,9 +15,11 @@ public class ReveriesEdge {
     MobBattleMechanic mobBattle = new MobBattleMechanic();
     EliteBattleMechanic eliteBattle = new EliteBattleMechanic();
     GunnerPlot gunnerPlotHandler = new GunnerPlot(); // Javines | Plot
+    Stats reward = new Stats();
     boolean retreat = false;
     boolean explore = true;
     boolean exit = false;
+    int goldGained, expGained;
     int currentArea = 0;
     
     public void enter(Hero hero) {
@@ -110,6 +113,9 @@ public class ReveriesEdge {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
                     // reward here
+                    goldGained = rand.nextInt(450, 500); // random gold between 450 and 500
+                    expGained = rand.nextInt(95, 145); // random exp between 95 and 145
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You collapse, but are rescued and taken back to safety.");
                     currentArea = 0;
@@ -128,7 +134,9 @@ public class ReveriesEdge {
                 if(MobBattleMechanic.run) {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
-                    // reward here
+                    goldGained = rand.nextInt(450, 500); // random gold between 450 and 500
+                    expGained = rand.nextInt(95, 145); // random exp between 95 and 145
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You collapse, but are rescued and taken back to safety.");
                     currentArea = 0;
@@ -196,7 +204,9 @@ public class ReveriesEdge {
                 if(MobBattleMechanic.run) {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
-                    // reward here
+                    goldGained = rand.nextInt(625, 700); // random gold between 625 and 700
+                    expGained = rand.nextInt(120, 170); // random exp between 120 and 170
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You collapse, but are rescued and taken back to safety.");
                     currentArea = 0;
@@ -215,7 +225,9 @@ public class ReveriesEdge {
                 if(MobBattleMechanic.run) {
                     MobBattleMechanic.run = false;
                 } else if (heroWon) {
-                    // reward here
+                    goldGained = rand.nextInt(625, 700); // random gold between 625 and 700
+                    expGained = rand.nextInt(120, 170); // random exp between 120 and 170
+                    reward.rewards(hero, goldGained, expGained);
                 } else {
                     System.out.println("You collapse, but are rescued and taken back to safety.");
                     currentArea = 0;
@@ -278,7 +290,9 @@ public class ReveriesEdge {
                 if(EliteBattleMechanic.run) {
                     EliteBattleMechanic.run = false;
                 } else if (heroWon) {
-                    // reward here
+                    goldGained = rand.nextInt(650, 725); // random gold between 650 and 725
+                    expGained = rand.nextInt(145, 180); // random exp between 145 and 180
+                    reward.rewards(hero, goldGained, expGained);    
                 } else {
                     System.out.println("You collapse, but are rescued and taken back to safety.");
                     currentArea = 0;
@@ -332,21 +346,9 @@ public class ReveriesEdge {
                     if(BattleMechanic.run) {
                         BattleMechanic.run = false;
                     } else if (heroWon) {
-                        goldGained = (int) Math.round(2500 * rand.nextDouble(1.50, 1.60)); // random multiplier 1.50 - 1.59
-                        expGained = (int) Math.round(450 * rand.nextDouble(1.20, 1.30)); // random multiplier 1.20 - 1.29
-                        //temp design for drop
-                        System.out.println("┌────────────────────────────────────────────────┐");
-                        System.out.println("│                CONGRATULATIONS!!!              │");
-                        System.out.println("│                                                │");
-                        System.out.println("│                                                │");
-                        System.out.println("│    You have obtained:                          │");
-                        System.out.println("│                                                │");
-                        System.out.println("│               Gold: " + df.format(goldGained) + "                      │");
-                        System.out.println("│               Exp : " + df.format(expGained) + "                        │");
-                        System.out.println("│                                                │");
-                        System.out.println("│                                                │");
-                        System.out.println("└────────────────────────────────────────────────┘");
-                        hero.levelUp(expGained);
+                        goldGained = (int) Math.round(4000 * rand.nextDouble(1.50, 1.60)); // random multiplier 1.50 - 1.59
+                        expGained = (int) Math.round(600 * rand.nextDouble(1.20, 1.30)); // random multiplier 1.20 - 1.29
+                        reward.rewards(hero, goldGained, expGained);
                         // need nako i remove and i move sa front sa plot related shits kaso need ko permission (will do this sa onsite class)
                         System.out.println("The shadow fades... Reverie's Edge grows silent once again.");
                         System.out.println();
