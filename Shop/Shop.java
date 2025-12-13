@@ -157,6 +157,11 @@ public class Shop {
 
         Inventory inv = hero.getInventory();
 
+        if(hero.getGold() < price) {
+            System.out.println("\nYou do not have enough gold to purchase " + getItem(choice) + ".\n");
+            return;
+        }
+
         // Ask for amount
         while (true) {
             try {

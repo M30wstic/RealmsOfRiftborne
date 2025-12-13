@@ -2,7 +2,6 @@ package Menu;
 
 import Hero.*;
 import Library.LibraryAcademy;
-import Narration.EndingPlot;
 import Narration.Narration;
 import TrainingGround.*;
 import DesignRelated.*;
