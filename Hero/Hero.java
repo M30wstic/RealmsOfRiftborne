@@ -342,6 +342,34 @@ public class Hero {
         this.poisoned = poisoned;
     }
 
+
+    // BONUS stats (from training)
+    private int bonusHp = 0;
+    private int bonusAtk = 0;
+    private int bonusDef = 0;
+    private int bonusMana = 0;
+
+    // Bonus application methods
+    public void addBonusHp(int value) {
+        bonusHp += value;
+        setHp(getHp() + value);
+    }
+
+    public void addBonusAtk(int value) {
+        bonusAtk += value;
+        setAttack(getAttack() + value);
+    }
+
+    public void addBonusDef(int value) {
+        bonusDef += value;
+        setDefense(getDefense() + value);
+    }
+
+    public void addBonusMana(int value) {
+        bonusMana += value;
+        setMana(getMana() + value);
+    }
+
     // level mechanism
     public void levelUp(int gainedExp){
         DecimalFormat df = new DecimalFormat("#,##0");
@@ -375,11 +403,16 @@ public class Hero {
 
         this.experience = totalExp;
         
+        int newHp   = calculateStat(getBaseHp(), getMaxHp(), level) + bonusHp;
+        int newAtk  = calculateStat(getBaseAtk(), getMaxAtk(), level) + bonusAtk;
+        int newMana = calculateStat(getBaseMana(), getMaxMana(), level) + bonusMana;
+        int newDef  = calculateStat(getBaseDef(), getMaxDef(), level) + bonusDef;
 
-        int newHp = calculateStat(getBaseHp(), getMaxHp(), level);
-        int newAtk = calculateStat(getBaseAtk(), getMaxAtk(), level);
-        int newMana = calculateStat(getBaseMana(), getMaxMana(), level);
-        int newDef = calculateStat(getBaseDef(), getMaxDef(), level);
+
+        // int newHp = calculateStat(getBaseHp(), getMaxHp(), level);
+        // int newAtk = calculateStat(getBaseAtk(), getMaxAtk(), level);
+        // int newMana = calculateStat(getBaseMana(), getMaxMana(), level);
+        // int newDef = calculateStat(getBaseDef(), getMaxDef(), level);
 
         System.out.println();
         System.out.println("┌───────────────────────────────┐");

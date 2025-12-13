@@ -10,35 +10,26 @@ public class StatProgress {
 
     public void endurance(Hero hero){
         double enduranceMultiplier = random.nextDouble(1.2, 1.5); 
-        int newHp = (int) (200 * enduranceMultiplier); 
-        hero.setMaxHp(hero.getMaxHp() + newHp); 
-        hero.setHp(hero.getHp() + newHp);
-
+        int newHp = (int) (200 * enduranceMultiplier);
+        hero.addBonusHp(newHp);  // add bonus + apply immediately
     }
 
     public void strength(Hero hero){
         double attackMultiplier = random.nextDouble(1.2, 1.5); 
-        int newAttack = (int) (100 * attackMultiplier); 
-        hero.setMaxAtk(hero.getMaxAtk() + newAttack); 
-        hero.setAttack(hero.getAttack() + newAttack);
-
+        int newAttack = (int) (100 * attackMultiplier);
+        hero.addBonusAtk(newAttack);
     }
 
     public void durability(Hero hero){
         double defenseMultiplier = random.nextDouble(1.2, 1.5); 
-        int newDefense = (int) (50 * defenseMultiplier); 
-        hero.setMaxDef(hero.getMaxDef() + newDefense); 
-        hero.setDefense(hero.getDefense() + newDefense);
-
+        int newDefense = (int) (50 * defenseMultiplier);
+        hero.addBonusDef(newDefense);
     }
 
     public void mana(Hero hero){
         double manaMultiplier = random.nextDouble(1.2, 1.5); 
-        int newMana = (int) (150 * manaMultiplier); 
-        hero.setMaxMana(hero.getMaxMana() + newMana); 
-        hero.setMana(hero.getMana() + newMana);
-
-        
+        int newMana = (int) (150 * manaMultiplier);
+        hero.addBonusMana(newMana);
     }
     
     public void displayXPandLevel(Hero hero, int xpReward) {
