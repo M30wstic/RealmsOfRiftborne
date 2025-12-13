@@ -20,6 +20,7 @@ public class Stats {
         System.out.println("          └────────────────────────────────────────┘");
         System.out.printf("           >>> %-15s : +%6d%n", "Gold Earned", gold);
         System.out.printf("           >>> %-15s : %6d%n", "Total Gold", hero.getGold());
+        System.out.printf("           >>> %-15s : +%6d%n", "Experience Earned", xp);
         System.out.println("                                                                   ");
         System.out.println("                            ░░░░░░░░  ");
         System.out.println("                        ░░░░▓▓▓▓▓▓▒▒░░░░");
@@ -47,7 +48,9 @@ public class Stats {
         System.out.println("                ░░░░▓▓▓▓░░░░");
         System.out.println("                    ░░░░");
         
-        
+        scanner.nextLine();
+
+        hero.levelUp(xp);
 
     }
     
