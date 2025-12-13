@@ -107,6 +107,12 @@ public class Training {
         int originalExperience = hero.getExperience();
         int originalLevel = hero.getLevel();
 
+        int originalMaxHp = hero.getMaxHp();
+        int originalMaxAtk = hero.getMaxAtk();
+        int originalMaxDef = hero.getMaxDef();
+        int originalMaxMana = hero.getMaxMana();
+
+
         while (continueTraining) {
 
             if(hero.getNumberOfTrainingFinished() == 4){
@@ -193,10 +199,21 @@ public class Training {
                                     hero.setExperience(originalExperience); 
                                     hero.setLevel(originalLevel);
 
+                                    hero.setHp(originalHp);
+                                    hero.setAttack(originalAtk);
+                                    hero.setDefense(originalDef);
+                                    hero.setMana(originalMana);
+
+                                    hero.setMaxHp(originalMaxHp);
+                                    hero.setMaxAtk(originalMaxAtk);
+                                    hero.setMaxDef(originalMaxDef);
+                                    hero.setMaxMana(originalMaxMana);
+
+
                                     hero.setFinishedEndurance(false);
                                     hero.setFinishedStrength(false);
                                     hero.setFinishedDurability(false);
-                                    hero.setFinishedManaRefinement(true);
+                                    hero.setFinishedManaRefinement(false);
                                     hero.setNumberOfTrainingFinished(0);
                                     hero.setFinishedAllTraining(false);
 
