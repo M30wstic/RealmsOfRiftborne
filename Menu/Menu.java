@@ -112,7 +112,7 @@ public class Menu extends Narration {
                             
                         }
 
-                        loadHandler.exitGame();
+                        //loadHandler.exitGame();
 
                         break;
 
@@ -144,7 +144,7 @@ public class Menu extends Narration {
 
                         }
 
-                        loadHandler.exitGame();
+                        //loadHandler.exitGame();
 
                         break;
 
@@ -176,7 +176,7 @@ public class Menu extends Narration {
             
                         }
 
-                        loadHandler.exitGame();
+                        //loadHandler.exitGame();
 
                         break;
 

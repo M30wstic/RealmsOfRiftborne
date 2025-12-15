@@ -260,7 +260,7 @@ public class Training {
     public void sparringMechanism(Hero hero, String trainingType){
         int chanceofWin = random.nextInt(10);
 
-        if(chanceofWin < 7){
+        if(chanceofWin <= 7){
             hero.setNumberOfTrainingFinished(hero.getNumberOfTrainingFinished() + 1);
             separatorHandler.promptSeparatorResized();
             System.out.println("┌────────────────────────────┐");

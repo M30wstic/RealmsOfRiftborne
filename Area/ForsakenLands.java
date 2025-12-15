@@ -125,6 +125,12 @@ public class ForsakenLands {
         if(explore){
             if(rand.nextBoolean()){
                 System.out.println("A wandering husk of a fallen warrior approaches!");
+
+                System.out.println();
+                System.out.println("Press ENTER to continue...");
+                scan.nextLine();
+                scan.nextLine();
+
                 boolean heroWon = mobBattle.fight(hero, randomMob());
                 if(MobBattleMechanic.run) {
                     MobBattleMechanic.run = false;
@@ -420,7 +426,15 @@ public class ForsakenLands {
                         System.out.println("You have conquered the Forsaken Lands.");
                         System.out.println();
                         System.out.println("");
+
+                        System.out.println();
+                        System.out.println("Press ENTER to continue...");
+                        scan.nextLine();
+                        scan.nextLine();
+                        
                         boolean specialEnding = battle.fight(hero, new Kim());
+                        
+
                         if(BattleMechanic.run) {
                             BattleMechanic.run = false;
                         } else if (specialEnding) {
