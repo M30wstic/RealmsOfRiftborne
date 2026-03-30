@@ -208,6 +208,7 @@ public class GameWindow {
         JFrame window = new JFrame("Mystvale Academy RPG");
         window.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         window.setMinimumSize(new Dimension(1280, 800));
+        window.setResizable(false);
         window.setContentPane(rootPanel);
 
         rootPanel.add(buildLandingScreen(), ROOT_LANDING);
