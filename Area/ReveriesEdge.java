@@ -8,7 +8,7 @@ import Narration.*;
 import java.text.DecimalFormat;
 import java.util.*;
 
-public class ReveriesEdge {
+public class ReveriesEdge extends BaseArea {
     static Random rand = new Random();
     static Scanner scan = new Scanner(System.in);
     DecimalFormat df = new DecimalFormat("#,##0");
@@ -22,6 +22,7 @@ public class ReveriesEdge {
     int goldGained, expGained;
     int currentArea = 0;
     
+    @Override
     public void enter(Hero hero) {
         // hero.setLevel(45); // for testing
         // hero.levelUp(101); // for testing
@@ -56,6 +57,7 @@ public class ReveriesEdge {
         exit = false;
     }
 
+    @Override
     public void exploreEntry(Hero hero) {
         char choice;
 
@@ -104,6 +106,7 @@ public class ReveriesEdge {
         }
     }
 
+    //method unique to this class, NOT in abstract class
     public void exploreOuterArea(Hero hero) {
         System.out.println("┌────────────────────────────────────────────────────────────┐");
         System.out.println("│             *             REVERIES EDGE      *             │");
@@ -218,6 +221,7 @@ public class ReveriesEdge {
         }
     }
 
+    @Override
     public void exploreMiddleArea(Hero hero) {
         System.out.println("┌───────────────────────────────────────────────────────────────────┐");
         System.out.println("│                          REVERIES EDGE            *          *    │");
@@ -332,6 +336,7 @@ public class ReveriesEdge {
         }
     }
 
+    @Override
     public void exploreInnerArea(Hero hero) {
         BattleMechanic battle = new BattleMechanic();
         System.out.println("┌───────────────────────────────────────────────────────────────────────────────────┐");
@@ -457,6 +462,7 @@ public class ReveriesEdge {
         }
     }
 
+    @Override
     public void playSection(String[] section) {
         System.out.println("\nPress ENTER to continue...");
         scan.nextLine();
@@ -475,6 +481,7 @@ public class ReveriesEdge {
         System.out.println(); 
     }
     
+    @Override
     public Entity randomMob(){
         boolean choice = rand.nextBoolean();
 
@@ -485,6 +492,7 @@ public class ReveriesEdge {
         } 
     }
 
+    @Override
     public void exit() {
 
         System.out.println();
@@ -495,6 +503,12 @@ public class ReveriesEdge {
         System.out.println("└────────────────────────────────────────────┘");
         System.out.println();
         System.out.println();
+    }
+
+    //just to satisfy abstract class
+    @Override
+    public void exploreOutsideArea(Hero hero) {
+        throw new UnsupportedOperationException("Unimplemented method 'exploreOutsideArea'");
     }
 
     

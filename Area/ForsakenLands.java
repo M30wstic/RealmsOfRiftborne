@@ -5,11 +5,10 @@ import DesignRelated.*;
 import Hero.*;
 import Mobs.*;
 import Narration.*;
-
 import java.text.DecimalFormat;
 import java.util.*;
 
-public class ForsakenLands {
+public class ForsakenLands extends BaseArea {
     static Random rand = new Random();
     static Scanner scan = new Scanner(System.in);
     DecimalFormat df = new DecimalFormat("#,##0");
@@ -27,6 +26,7 @@ public class ForsakenLands {
     Narration separatorHandler =  new Narration();
     EndingPlot endingplotHandler = new EndingPlot();
 
+    @Override
     public void enter(Hero hero) {
         // hero.setLevel(59); // for testing
         // hero.levelUp(101); // for testing
@@ -61,6 +61,7 @@ public class ForsakenLands {
         exit = false;
     }
 
+    @Override
     public void exploreEntry(Hero hero) {
         char choice;
 
@@ -110,6 +111,7 @@ public class ForsakenLands {
         }
     }
 
+    @Override
     public void exploreOutsideArea(Hero hero) {
         System.out.println("┌────────────────────────────────────────────────────────────┐");
         System.out.println("│ ===============               FORSAKEN LANDS               │");
@@ -220,6 +222,7 @@ public class ForsakenLands {
         }
     }
 
+    @Override
     public void exploreMiddleArea(Hero hero) {
         System.out.println("┌────────────────────────────────────────────────────────────┐");
         System.out.println("│ =========  =========             FORSAKEN LANDS            │");
@@ -334,6 +337,7 @@ public class ForsakenLands {
         }
     }
 
+    @Override
     public void exploreInnerArea(Hero hero) {
         BattleMechanic battle = new BattleMechanic();
         System.out.println("┌─────────────────────────────────────────────────────────────────────────────┐");
@@ -489,6 +493,7 @@ public class ForsakenLands {
         }
     }
 
+    @Override
     public void playSection(String[] section) {
         System.out.println("\nPress ENTER to continue...");
         scan.nextLine();
@@ -506,6 +511,7 @@ public class ForsakenLands {
         System.out.println(); 
     }
     
+    @Override
     public Entity randomMob(){
         boolean choice = rand.nextBoolean();
 
@@ -516,6 +522,7 @@ public class ForsakenLands {
         } 
     }
 
+    @Override
     public void exit() {
 
         System.out.println();

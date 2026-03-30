@@ -8,7 +8,7 @@ import Narration.*;
 import java.text.DecimalFormat;
 import java.util.*;
 
-public class ForestOfReverie {
+public class ForestOfReverie extends BaseArea {
     static Random rand = new Random();
     static Scanner scan = new Scanner(System.in);
     DecimalFormat df = new DecimalFormat("#,##0");
@@ -22,6 +22,7 @@ public class ForestOfReverie {
     int goldGained, expGained;
     int currentArea = 0;
 
+    @Override
     public void enter(Hero hero) {
         
         System.out.println();
@@ -55,6 +56,7 @@ public class ForestOfReverie {
         exit = false;
     }
 
+    @Override
     public void exploreEntry(Hero hero) {
         char choice;
 
@@ -104,7 +106,7 @@ public class ForestOfReverie {
         }
     }
 
-
+    @Override
     public void exploreOutsideArea(Hero hero) {
         // This is my current currentArea = 1 
         System.out.println("┌─────────────────────────────────────────────────┐");
@@ -221,6 +223,7 @@ public class ForestOfReverie {
         }
     }
 
+    @Override
     public void exploreMiddleArea(Hero hero) {
         System.out.println("┌───────────────────────────────────────────────────────────┐");
         System.out.println("│    /\\  /\\  /\\              FOREST OF REVERIE              │");
@@ -336,6 +339,7 @@ public class ForestOfReverie {
         }
     }
 
+    @Override
     public void exploreInnerArea(Hero hero) {
         // This is my current currentArea = 3
         BattleMechanic battle = new BattleMechanic();
@@ -473,6 +477,7 @@ public class ForestOfReverie {
         }
     }
     
+    @Override
     public void playSection(String[] section) {
         System.out.println("\n\nPress ENTER to continue...");
         scan.nextLine();
@@ -493,6 +498,7 @@ public class ForestOfReverie {
         System.out.println(); 
     }
     
+    @Override
     public Entity randomMob(){
         boolean choice = rand.nextBoolean();
 
@@ -503,6 +509,7 @@ public class ForestOfReverie {
         } 
     }
 
+    @Override
     public void exit() {
         System.out.println();
         System.out.println();
