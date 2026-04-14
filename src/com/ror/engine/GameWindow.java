@@ -1,26 +1,24 @@
 package com.ror.engine;
 
 import com.ror.models.*;
-import com.ror.models.Inventory.Inventory; //God forbid we have two Inventory classes and we import the wrong one by accident
-import com.ror.models.training.StatProgress;
-import com.ror.models.Boss.*;
+import com.ror.models.Boss.*; //God forbid we have two Inventory classes and we import the wrong one by accident
+import com.ror.models.Inventory.Inventory;
 import com.ror.models.Mobs.*;
-import com.ror.models.Entity;
-
-import javax.swing.*;
-import javax.swing.border.Border;
-import javax.swing.plaf.FontUIResource;
-import javax.imageio.ImageIO;
+import com.ror.models.training.StatProgress;
+import com.ror.utils.sounds.SoundController;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.io.BufferedOutputStream;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.imageio.ImageIO;
+import javax.swing.*;
+import javax.swing.border.Border;
+import javax.swing.plaf.FontUIResource;
 
 public class GameWindow implements BattlePanel.BattleActionListener {
 
@@ -178,6 +176,8 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         frame = buildFrame();
         setupBattleBackspaceBinding();
         frame.setVisible(true);
+            System.out.println("DEBUG: Working Directory = " + System.getProperty("user.dir"));
+            SoundController.playBGM("/com/ror/models/assets/sounds/titleScreen.ogg");
         showLandingScreen();
     }
 
@@ -302,6 +302,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         screenPanel.add(battlePanel, SCREEN_BATTLE);
 
         panel.add(screenPanel, BorderLayout.CENTER);
+
         return panel;
     }
 
