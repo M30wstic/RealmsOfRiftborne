@@ -448,19 +448,17 @@ final class GameWindowGraphics {
                 g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
                 int pressOffset = getModel().isPressed() ? 2 : 0;
-                int hoverInset = getModel().isRollover() ? 4 : 0;
-                int drawX = hoverInset / 2;
-                int drawY = pressOffset + (hoverInset / 2);
-                int drawWidth = Math.max(1, getWidth() - hoverInset);
-                int drawHeight = Math.max(1, getHeight() - hoverInset - pressOffset);
+                int drawX = 0;
+                int drawY = pressOffset;
+                int drawWidth = Math.max(1, getWidth());
+                int drawHeight = Math.max(1, getHeight() - pressOffset);
 
-                g2.drawImage(image, drawX, drawY, drawWidth, drawHeight, null);
-
-                if (getModel().isRollover()) {
-                    g2.setColor(new Color(196, 255, 234, 34));
-                    g2.fillRoundRect(drawX + 8, drawY + 8,
-                            Math.max(0, drawWidth - 16), Math.max(0, drawHeight - 16), 18, 18);
+                if (getModel().isRollover() && !getModel().isPressed()) {
+                    paintImageGlow(g2, image, drawX, drawY, drawWidth, drawHeight,
+                            new Color(120, 255, 225, 150));
+                    drawY = Math.max(0, drawY - 1);
                 }
+                g2.drawImage(image, drawX, drawY, drawWidth, drawHeight, null);
                 g2.dispose();
             }
 
@@ -479,6 +477,20 @@ final class GameWindowGraphics {
         button.setRolloverEnabled(true);
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return button;
+    }
+
+    private void paintImageGlow(Graphics2D g2, BufferedImage image, int x, int y, int width, int height, Color color) {
+        BufferedImage mask = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D maskGraphics = mask.createGraphics();
+        maskGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        maskGraphics.drawImage(image, 0, 0, width, height, null);
+        maskGraphics.setComposite(AlphaComposite.SrcAtop);
+        maskGraphics.setColor(color);
+        maskGraphics.fillRect(0, 0, width, height);
+        maskGraphics.dispose();
+
+        g2.drawImage(mask, x - 1, y - 1, width + 2, height + 2, null);
+        g2.drawImage(mask, x, y, width, height, null);
     }
 
     private BufferedImage loadImageAsset(String path) {

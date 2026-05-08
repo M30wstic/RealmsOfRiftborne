@@ -5,6 +5,7 @@ import com.ror.models.Boss.*;
 import com.ror.models.Inventory.Inventory;
 import com.ror.models.Mobs.*;
 import com.ror.models.training.StatProgress;
+import com.ror.engine.narration.Narration;
 import com.ror.utils.sounds.SoundManager;
 import java.awt.*;
 import java.awt.event.*;
@@ -37,6 +38,15 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private final Random random = new Random();
     private final StatProgress statProgress = new StatProgress();
     private final GameWindowGraphics graphics = new GameWindowGraphics();
+    private final Icon smallHealthPotionIcon = loadItemIcon("small-health-potion.png");
+    private final Icon mediumHealthPotionIcon = loadItemIcon("medium-health-potion.png");
+    private final Icon largeHealthPotionIcon = loadItemIcon("large-health-potion.png");
+    private final Icon smallManaPotionIcon = loadItemIcon("small-mana-potion.png");
+    private final Icon mediumManaPotionIcon = loadItemIcon("medium-mana-potion.png");
+    private final Icon largeManaPotionIcon = loadItemIcon("large-mana-potion.png");
+    private final Icon shopkeeperPrincipalIcon = loadPixelUiIcon("shopkeeper-principal.png", 380, 380);
+    private final BufferedImage shopBackgroundImage = graphics.loadUIImage("shop-background.jpg");
+    private final BufferedImage shopHeaderBackgroundImage = graphics.loadUIImage("shop-header-background.png");
 
     // Legacy console area components
     private final JTextArea outputArea = new JTextArea();
@@ -68,6 +78,10 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private static final Color COLOR_BORDER = new Color(145, 114, 91);
     private static final Color COLOR_BUTTON_PRIMARY = new Color(0x0B1033);
     private static final Color COLOR_BUTTON_BORDER = new Color(0x2B356E);
+    private static final Color COLOR_SHOP_OUTSIDE = new Color(30, 28, 40);
+    private static final Color COLOR_SHOP_TEXT = new Color(246, 239, 221);
+    private static final Color COLOR_SHOP_TEXT_MUTED = new Color(211, 190, 154);
+    private static final Color COLOR_SHOP_BORDER = new Color(93, 87, 111);
     private static final Color COLOR_HERO_HP = new Color(164, 54, 54);
     private static final Color COLOR_HERO_MANA = new Color(52, 92, 156);
     private static final Color COLOR_CHARSEL_BACKGROUND = new Color(227, 221, 212);
@@ -79,9 +93,12 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private final JLabel titleLabel = new JLabel("Mystvale Academy");
     private final JLabel subtitleLabel = new JLabel("GUI RPG");
     private JPanel headerPanel;
+    private JButton headerBackButton;
     private JButton headerExitButton;
+    private JPanel gameShellPanel;
     private JPanel leftPane;
     private Border defaultLeftPaneBorder;
+    private Border defaultHeaderBorder;
 
     // Hero dashboard components
     private final JLabel heroNameValue = new JLabel("-");
@@ -108,6 +125,19 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     // Shop labels
     private final JLabel shopGoldLabel = new JLabel("Gold: -");
     private final JLabel shopStatusLabel = new JLabel("Choose an item and quantity.");
+    private static final int[] SHOP_PRICES = { 450, 1350, 2750, 450, 1350, 2750 };
+    private static final String[] SHOP_ITEM_NAMES = {
+            "Small Health Potion", "Medium Health Potion", "Large Health Potion",
+            "Small Mana Potion", "Medium Mana Potion", "Large Mana Potion"
+    };
+    private static final String[] SHOP_ITEM_DETAILS = {
+            "Restores 20% HP.",
+            "Restores 45% HP.",
+            "Restores 70% HP.",
+            "Restores 20% Mana.",
+            "Restores 45% Mana.",
+            "Restores 70% Mana."
+    };
 
     // Profile panel labels
     private final JLabel profileName = new JLabel("-");
@@ -216,7 +246,19 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     }
 
     private JPanel buildGameShell() {
-        JPanel panel = new JPanel(new BorderLayout(18, 18));
+        JPanel panel = new JPanel(new BorderLayout(18, 0)) {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                if (COLOR_SHOP_OUTSIDE.equals(getBackground()) && shopHeaderBackgroundImage != null) {
+                    Graphics2D g2 = (Graphics2D) graphicsContext.create();
+                    paintShopSkyBackground(g2, getWidth(), getHeight(), 92);
+                    g2.dispose();
+                    return;
+                }
+                super.paintComponent(graphicsContext);
+            }
+        };
+        gameShellPanel = panel;
         panel.setBackground(COLOR_BACKGROUND);
 
         headerPanel = buildHeader();
@@ -246,9 +288,19 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     // -------------------------------------------------------------------------
 
     private JPanel buildHeader() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                if (COLOR_SHOP_OUTSIDE.equals(getBackground())) {
+                    return;
+                }
+                super.paintComponent(graphicsContext);
+            }
+        };
         panel.setBorder(BorderFactory.createEmptyBorder(18, 22, 0, 22));
+        defaultHeaderBorder = panel.getBorder();
         panel.setBackground(COLOR_BACKGROUND);
+        panel.setOpaque(false);
 
         titleLabel.setFont(getHeadingFont(30f));
         titleLabel.setForeground(COLOR_TEXT_DARK);
@@ -263,22 +315,47 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         textBlock.add(Box.createVerticalStrut(4));
         textBlock.add(subtitleLabel);
 
+        headerBackButton = new JButton("Back to Academy");
+        headerBackButton.setFont(getBodyFont(13f).deriveFont(Font.BOLD, 13f));
+        headerBackButton.setForeground(COLOR_TEXT_DARK);
+        headerBackButton.setFocusPainted(false);
+        headerBackButton.setContentAreaFilled(false);
+        headerBackButton.setOpaque(false);
+        headerBackButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        headerBackButton.setPreferredSize(new Dimension(140, 34));
+        headerBackButton.setVisible(false);
+        headerBackButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent event) {
+                headerBackButton.setForeground(isShopHeaderActive() ? COLOR_SHOP_TEXT_MUTED : COLOR_TEXT_MUTED);
+            }
+            @Override
+            public void mouseExited(MouseEvent event) {
+                headerBackButton.setForeground(isShopHeaderActive() ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
+            }
+        });
+        headerBackButton.addActionListener(event -> {
+            subtitleLabel.setText("Explore Mystvale Academy.");
+            refreshHeroDashboard();
+            showScreen(SCREEN_ACADEMY);
+        });
+
         headerExitButton = new JButton("Exit");
         headerExitButton.setFont(getBodyFont(13f).deriveFont(Font.BOLD, 13f));
         headerExitButton.setForeground(COLOR_TEXT_DARK);
         headerExitButton.setFocusPainted(false);
         headerExitButton.setContentAreaFilled(false);
         headerExitButton.setOpaque(false);
-        headerExitButton.setBorder(BorderFactory.createLineBorder(COLOR_BUTTON_BORDER, 1));
+        headerExitButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         headerExitButton.setPreferredSize(new Dimension(90, 34));
         headerExitButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent event) {
-                headerExitButton.setBorder(BorderFactory.createLineBorder(COLOR_BUTTON_PRIMARY, 1));
+                headerExitButton.setForeground(isShopHeaderActive() ? COLOR_SHOP_TEXT_MUTED : COLOR_TEXT_MUTED);
             }
             @Override
             public void mouseExited(MouseEvent event) {
-                headerExitButton.setBorder(BorderFactory.createLineBorder(COLOR_BUTTON_BORDER, 1));
+                headerExitButton.setForeground(isShopHeaderActive() ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
             }
         });
         headerExitButton.addActionListener(event -> {
@@ -288,8 +365,9 @@ public class GameWindow implements BattlePanel.BattleActionListener {
             }
         });
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         actions.setOpaque(false);
+        actions.add(headerBackButton);
         actions.add(headerExitButton);
 
         panel.add(textBlock, BorderLayout.WEST);
@@ -697,53 +775,92 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     }
 
     private JPanel buildShopScreen() {
-        JPanel content = createCardPanel();
+        JPanel mainPanel = createShopBackgroundPanel();
+        mainPanel.setLayout(new BorderLayout());
 
-        content.add(createHeading("Shop"));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createBody("Buy potions here without leaving the academy screen."));
-        content.add(Box.createVerticalStrut(10));
+        JPanel header = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                Graphics2D g2 = (Graphics2D) graphicsContext.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(25, 23, 33, 230));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setColor(new Color(255, 255, 255, 14));
+                g2.fillRect(0, getHeight() - 1, getWidth(), 1);
+                g2.dispose();
+                super.paintComponent(graphicsContext);
+            }
+        };
+        header.setOpaque(false);
+        header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
+        header.setBorder(BorderFactory.createEmptyBorder(14, 20, 14, 20));
+
+        JLabel shopTitle = createHeading("Shop");
+        shopTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        shopTitle.setForeground(COLOR_SHOP_TEXT);
+        header.add(shopTitle);
+        header.add(Box.createVerticalStrut(6));
+
+        JLabel descriptionLabel = createBody("Select an item to view details or purchase a custom amount.");
+        descriptionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        descriptionLabel.setForeground(COLOR_SHOP_TEXT_MUTED);
+        header.add(descriptionLabel);
+        header.add(Box.createVerticalStrut(10));
 
         shopGoldLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        shopGoldLabel.setForeground(COLOR_TEXT_DARK);
-        content.add(shopGoldLabel);
-        content.add(Box.createVerticalStrut(6));
+        shopGoldLabel.setForeground(new Color(226, 201, 139));
+        header.add(shopGoldLabel);
+        header.add(Box.createVerticalStrut(6));
 
         shopStatusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        shopStatusLabel.setForeground(COLOR_TEXT_MUTED);
-        content.add(shopStatusLabel);
-        content.add(Box.createVerticalStrut(12));
+        shopStatusLabel.setForeground(COLOR_SHOP_TEXT_MUTED);
+        header.add(shopStatusLabel);
+        mainPanel.add(header, BorderLayout.NORTH);
 
-        content.add(createShopRow("Small Health Potion", 450, 0));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createShopRow("Medium Health Potion", 1350, 1));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createShopRow("Large Health Potion", 2750, 2));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createShopRow("Small Mana Potion", 450, 3));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createShopRow("Medium Mana Potion", 1350, 4));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createShopRow("Large Mana Potion", 2750, 5));
-        content.add(Box.createVerticalStrut(14));
+        JPanel contentWrapper = new JPanel(new GridLayout(1, 2, 20, 0));
+        contentWrapper.setOpaque(false);
+        contentWrapper.setBorder(BorderFactory.createEmptyBorder(12, 20, 20, 20));
 
-        JButton bottomBackButton = createSecondaryButton("Back to Academy");
-        bottomBackButton.addActionListener(event -> {
-            subtitleLabel.setText("Explore Mystvale Academy.");
-            refreshHeroDashboard();
-            showScreen(SCREEN_ACADEMY);
-        });
+        JPanel leftPanel = new JPanel();
+        leftPanel.setOpaque(false);
+        leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
+        leftPanel.add(Box.createVerticalGlue());
+        leftPanel.add(createShopkeeperDisplay());
+        leftPanel.add(Box.createVerticalGlue());
 
-        content.add(bottomBackButton);
-        content.add(Box.createVerticalGlue());
+        JPanel rightPanel = new JPanel();
+        rightPanel.setOpaque(false);
+        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
 
-        JScrollPane scrollPane = new JScrollPane(content);
+        rightPanel.add(createShopRow("Small Health Potion", 450, 0, smallHealthPotionIcon));
+        rightPanel.add(Box.createVerticalStrut(6));
+        rightPanel.add(createShopRow("Medium Health Potion", 1350, 1, mediumHealthPotionIcon));
+        rightPanel.add(Box.createVerticalStrut(6));
+        rightPanel.add(createShopRow("Large Health Potion", 2750, 2, largeHealthPotionIcon));
+        rightPanel.add(Box.createVerticalStrut(6));
+        rightPanel.add(createShopRow("Small Mana Potion", 450, 3, smallManaPotionIcon));
+        rightPanel.add(Box.createVerticalStrut(6));
+        rightPanel.add(createShopRow("Medium Mana Potion", 1350, 4, mediumManaPotionIcon));
+        rightPanel.add(Box.createVerticalStrut(6));
+        rightPanel.add(createShopRow("Large Mana Potion", 2750, 5, largeManaPotionIcon));
+        rightPanel.add(Box.createVerticalGlue());
+
+        contentWrapper.add(leftPanel);
+        contentWrapper.add(rightPanel);
+        mainPanel.add(contentWrapper, BorderLayout.CENTER);
+
+        JScrollPane scrollPane = new JScrollPane(mainPanel);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.getVerticalScrollBar().setBackground(COLOR_SHOP_OUTSIDE);
+        scrollPane.getHorizontalScrollBar().setBackground(COLOR_SHOP_OUTSIDE);
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
 
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(COLOR_PANEL);
+        panel.setBackground(COLOR_SHOP_OUTSIDE);
+        scrollPane.setBackground(COLOR_SHOP_OUTSIDE);
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
     }
@@ -1007,31 +1124,238 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     }
 
     private JPanel createShopRow(String name, int price, int itemIndex) {
-        JPanel row = new JPanel(new BorderLayout(10, 6));
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
-        row.setBackground(COLOR_PANEL);
-        row.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COLOR_BORDER, 1),
-                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+        return createShopRow(name, price, itemIndex, null);
+    }
 
-        JLabel nameLabel = new JLabel(name + "  |  " + statFormat.format(price) + " gold each");
-        nameLabel.setForeground(COLOR_TEXT_DARK);
-        row.add(nameLabel, BorderLayout.NORTH);
+    private JPanel createShopRow(String name, int price, int itemIndex, Icon icon) {
+        JPanel row = new JPanel(new BorderLayout(16, 0)) {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                Graphics2D g2 = (Graphics2D) graphicsContext.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        JPanel actions = new JPanel(new GridLayout(2, 2, 8, 6));
+                int arc = 8;
+                g2.setColor(new Color(28, 27, 36, 220));
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, arc, arc);
+
+                g2.setColor(new Color(255, 255, 255, 18));
+                g2.drawLine(10, 8, Math.max(10, getWidth() - 12), 8);
+                g2.dispose();
+                super.paintComponent(graphicsContext);
+            }
+        };
+        row.setOpaque(false);
+        row.setBorder(BorderFactory.createEmptyBorder(8, 24, 8, 48));
+        row.setPreferredSize(new Dimension(520, 112));
+        row.setMaximumSize(new Dimension(520, 112));
+        row.setAlignmentX(Component.RIGHT_ALIGNMENT);
+
+        JPanel itemPanel = new JPanel(new BorderLayout(12, 0));
+        itemPanel.setOpaque(false);
+        itemPanel.setPreferredSize(new Dimension(292, 96));
+
+        JPanel nameAndIconPanel = new JPanel();
+        nameAndIconPanel.setOpaque(false);
+        nameAndIconPanel.setLayout(new BoxLayout(nameAndIconPanel, BoxLayout.Y_AXIS));
+        nameAndIconPanel.setPreferredSize(new Dimension(190, 96));
+
+        JLabel nameLabel = new JLabel(name);
+        nameLabel.setForeground(new Color(246, 239, 221));
+        nameLabel.setFont(getBodyFont(14f).deriveFont(Font.BOLD, 14f));
+        nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        nameLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        nameAndIconPanel.add(nameLabel);
+        nameAndIconPanel.add(Box.createVerticalGlue());
+
+        JLabel iconLabel = new JLabel(icon == null ? null : scaleIcon(icon, 44, 44));
+        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        nameAndIconPanel.add(iconLabel);
+        nameAndIconPanel.add(Box.createVerticalGlue());
+        itemPanel.add(nameAndIconPanel, BorderLayout.CENTER);
+
+        JPanel pricePanel = new JPanel(new BorderLayout());
+        pricePanel.setOpaque(false);
+        pricePanel.setPreferredSize(new Dimension(52, 96));
+
+        JLabel priceLabel = new JLabel(statFormat.format(price));
+        priceLabel.setForeground(new Color(226, 201, 139));
+        priceLabel.setFont(getBodyFont(14f).deriveFont(Font.BOLD, 14f));
+        priceLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        pricePanel.add(priceLabel, BorderLayout.NORTH);
+        itemPanel.add(pricePanel, BorderLayout.EAST);
+        row.add(itemPanel, BorderLayout.CENTER);
+
+        JPanel actions = new JPanel();
+        actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
         actions.setOpaque(false);
+        actions.setPreferredSize(new Dimension(160, 96));
 
-        for (int qty : new int[]{ 1, 5, 10, 20 }) {
-            JButton buyButton = createSecondaryButton("Buy x" + qty);
-            buyButton.setPreferredSize(new Dimension(150, 34));
-            buyButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
-            final int quantity = qty;
-            buyButton.addActionListener(event -> buyShopItem(itemIndex, quantity));
-            actions.add(buyButton);
+        JButton buyOneButton = createShopBuyButton(1);
+        buyOneButton.addActionListener(event -> buyShopItem(itemIndex, 1));
+        JButton buyFiveButton = createShopBuyButton(5);
+        buyFiveButton.addActionListener(event -> buyShopItem(itemIndex, 5));
+
+        actions.add(buyOneButton);
+        actions.add(Box.createVerticalGlue());
+        actions.add(buyFiveButton);
+
+        row.add(actions, BorderLayout.EAST);
+        return row;
+    }
+
+    private JButton createShopBuyButton(int quantity) {
+        String label = "Buy x" + quantity;
+        BufferedImage buttonImage = graphics.prepareShopButtonImage(label + ".png");
+        JButton button = buttonImage == null ? createSecondaryButton(label) : new JButton(label) {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                Graphics2D g2 = (Graphics2D) graphicsContext.create();
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
+                ButtonModel model = getModel();
+                int yOffset = model.isArmed() && model.isPressed() ? 1 : 0;
+                int drawWidth = getWidth();
+                int drawHeight = Math.max(1, getHeight() - yOffset);
+
+                if (model.isRollover() && !model.isPressed()) {
+                    paintImageGlow(g2, buttonImage, 0, yOffset, drawWidth, drawHeight,
+                            new Color(120, 255, 225, 135));
+                    yOffset = Math.max(0, yOffset - 1);
+                }
+                g2.drawImage(buttonImage, 0, yOffset, drawWidth, drawHeight, null);
+
+                g2.dispose();
+            }
+        };
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setOpaque(false);
+        button.setRolloverEnabled(true);
+        button.setAlignmentX(Component.CENTER_ALIGNMENT);
+        button.setPreferredSize(new Dimension(160, 40));
+        button.setMaximumSize(new Dimension(160, 40));
+        button.setMinimumSize(new Dimension(160, 40));
+        button.setToolTipText(null);
+        return button;
+    }
+
+    private void paintImageGlow(Graphics2D g2, BufferedImage image, int x, int y, int width, int height, Color color) {
+        BufferedImage mask = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D maskGraphics = mask.createGraphics();
+        maskGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        maskGraphics.drawImage(image, 0, 0, width, height, null);
+        maskGraphics.setComposite(AlphaComposite.SrcAtop);
+        maskGraphics.setColor(color);
+        maskGraphics.fillRect(0, 0, width, height);
+        maskGraphics.dispose();
+
+        g2.drawImage(mask, x - 1, y - 1, width + 2, height + 2, null);
+        g2.drawImage(mask, x, y, width, height, null);
+    }
+
+    private JPanel createShopkeeperDisplay() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
+        panel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panel.setPreferredSize(new Dimension(420, 420));
+        panel.setMaximumSize(new Dimension(420, 420));
+
+        JLabel shopkeeperLabel = new JLabel(shopkeeperPrincipalIcon);
+        shopkeeperLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        shopkeeperLabel.setVerticalAlignment(SwingConstants.CENTER);
+        panel.add(shopkeeperLabel, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createShopBackgroundPanel() {
+        return new JPanel() {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                super.paintComponent(graphicsContext);
+                if (shopBackgroundImage == null) {
+                    graphicsContext.setColor(COLOR_PANEL);
+                    graphicsContext.fillRect(0, 0, getWidth(), getHeight());
+                    return;
+                }
+
+                Graphics2D g2 = (Graphics2D) graphicsContext.create();
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
+                double scale = Math.max(
+                        getWidth() / (double) shopBackgroundImage.getWidth(),
+                        getHeight() / (double) shopBackgroundImage.getHeight());
+                int drawWidth = (int) Math.ceil(shopBackgroundImage.getWidth() * scale);
+                int drawHeight = (int) Math.ceil(shopBackgroundImage.getHeight() * scale);
+                int drawX = (getWidth() - drawWidth) / 2;
+                int drawY = (getHeight() - drawHeight) / 2;
+
+                g2.drawImage(shopBackgroundImage, drawX, drawY, drawWidth, drawHeight, null);
+                g2.setColor(new Color(10, 9, 24, 70));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+    }
+
+    private void paintShopSkyBackground(Graphics2D g2, int width, int height, int overlayAlpha) {
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
+        if (shopHeaderBackgroundImage == null) {
+            g2.setColor(COLOR_SHOP_OUTSIDE);
+            g2.fillRect(0, 0, width, height);
+            return;
         }
 
-        row.add(actions, BorderLayout.CENTER);
-        return row;
+        double scale = Math.max(
+                width / (double) shopHeaderBackgroundImage.getWidth(),
+                height / (double) shopHeaderBackgroundImage.getHeight());
+        int drawWidth = (int) Math.ceil(shopHeaderBackgroundImage.getWidth() * scale);
+        int drawHeight = (int) Math.ceil(shopHeaderBackgroundImage.getHeight() * scale);
+        int drawX = (width - drawWidth) / 2;
+        int drawY = (height - drawHeight) / 2;
+
+        g2.drawImage(shopHeaderBackgroundImage, drawX, drawY, drawWidth, drawHeight, null);
+        g2.setColor(new Color(10, 9, 24, overlayAlpha));
+        g2.fillRect(0, 0, width, height);
+    }
+
+    private Icon scaleIcon(Icon icon, int targetWidth, int targetHeight) {
+        if (!(icon instanceof ImageIcon imageIcon)) return icon;
+        Image scaled = imageIcon.getImage().getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
+        return new ImageIcon(scaled);
+    }
+
+    private Icon loadItemIcon(String fileName) {
+        BufferedImage image = graphics.loadItemImage(fileName);
+        return image == null ? null : new ImageIcon(image);
+    }
+
+    private Icon loadPixelUiIcon(String fileName, int targetWidth, int targetHeight) {
+        BufferedImage image = graphics.loadUIImage(fileName);
+        if (image == null) return null;
+
+        BufferedImage scaled = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = scaled.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        double scale = Math.min(
+                targetWidth / (double) Math.max(1, image.getWidth()),
+                targetHeight / (double) Math.max(1, image.getHeight()));
+        int drawWidth = Math.max(1, (int) Math.round(image.getWidth() * scale));
+        int drawHeight = Math.max(1, (int) Math.round(image.getHeight() * scale));
+        int drawX = (targetWidth - drawWidth) / 2;
+        int drawY = (targetHeight - drawHeight) / 2;
+
+        g2.drawImage(image, drawX, drawY, drawWidth, drawHeight, null);
+        g2.dispose();
+        return new ImageIcon(scaled);
     }
 
     private JPanel createStatLine(String label, JLabel value) {
@@ -1585,35 +1909,55 @@ public class GameWindow implements BattlePanel.BattleActionListener {
             playNarrationSequence("Shopkeeper", Narration.buildShopConversationNarration());
         }
         subtitleLabel.setText("Browse the academy shop.");
-        shopStatusLabel.setText("Choose an item and quantity.");
+        shopStatusLabel.setText("Choose an item, view details, or purchase a custom amount.");
         refreshInventoryPanel();
         refreshHeroDashboard();
         showScreen(SCREEN_SHOP);
+    }
+
+    private void openShopItemMenu(int itemChoice) {
+        if (!requireHero()) return;
+
+        String name = SHOP_ITEM_NAMES[itemChoice];
+        int price = SHOP_PRICES[itemChoice];
+        int owned = getPotionCount(hero.getInventory(), itemChoice);
+
+        Object[] options = { "Purchase Item", "View Item Details", "Cancel" };
+        int choice = showOptionSync(name,
+                "Selected: " + name
+                        + "\nPrice: " + statFormat.format(price) + " gold"
+                        + "\nOwned: " + owned,
+                options, options[0]);
+
+        if (choice == 0) {
+            buyShopItem(itemChoice);
+        } else if (choice == 1) {
+            showInfoSync(name, SHOP_ITEM_DETAILS[itemChoice]);
+            shopStatusLabel.setText("Viewed details for " + name + ".");
+        } else if (choice == 2) {
+            shopStatusLabel.setText("Transaction cancelled.");
+        }
     }
 
     private void buyShopItem(int itemChoice, int requestedQuantity) {
         if (!requireHero()) return;
 
         Inventory inventory = hero.getInventory();
-        int[] prices = { 450, 1350, 2750, 450, 1350, 2750 };
-        String[] names = {
-                "Small Health Potion", "Medium Health Potion", "Large Health Potion",
-                "Small Mana Potion", "Medium Mana Potion", "Large Mana Potion"
-        };
-
         int currentCount = getPotionCount(inventory, itemChoice);
         int availableCapacity = inventory.getCapacity() - currentCount;
+        String itemName = SHOP_ITEM_NAMES[itemChoice];
+        int price = SHOP_PRICES[itemChoice];
 
         if (availableCapacity <= 0) {
-            shopStatusLabel.setText(names[itemChoice] + " is already at max capacity.");
+            showShopNotice("Shop Keeper", itemName + " is already at max capacity.");
             return;
         }
 
         int quantity = Math.min(requestedQuantity, availableCapacity);
-        int totalCost = prices[itemChoice] * quantity;
+        int totalCost = price * quantity;
 
         if (hero.getGold() < totalCost) {
-            shopStatusLabel.setText("Not enough gold for " + quantity + " " + names[itemChoice] + ".");
+            showShopNotice("Shop Keeper", "Not enough gold for " + quantity + " " + itemName + ".");
             return;
         }
 
@@ -1624,8 +1968,85 @@ public class GameWindow implements BattlePanel.BattleActionListener {
 
         String cappedNote = quantity < requestedQuantity
                 ? " Max capacity reached, so only " + quantity + " bought." : "";
-        shopStatusLabel.setText("Purchased " + quantity + " " + names[itemChoice]
+        shopStatusLabel.setText("Purchased " + quantity + " " + itemName
                 + " for " + statFormat.format(totalCost) + " gold." + cappedNote);
+    }
+
+    private void buyShopItem(int itemChoice) {
+        if (!requireHero()) return;
+
+        Inventory inventory = hero.getInventory();
+        int currentCount = getPotionCount(inventory, itemChoice);
+        int availableCapacity = inventory.getCapacity() - currentCount;
+        String itemName = SHOP_ITEM_NAMES[itemChoice];
+        int price = SHOP_PRICES[itemChoice];
+
+        if (availableCapacity <= 0) {
+            showShopNotice("Shop Keeper", itemName + " is already at max capacity.");
+            return;
+        }
+
+        if (hero.getGold() < price) {
+            showShopNotice("Shop Keeper", "Not enough gold to purchase " + itemName + ".");
+            return;
+        }
+
+        int maxAffordable = hero.getGold() / price;
+        int maxQuantity = Math.min(availableCapacity, Math.min(inventory.getCapacity(), maxAffordable));
+        int quantity = promptShopQuantity(itemName, maxQuantity);
+        if (quantity <= 0) {
+            shopStatusLabel.setText("Purchase cancelled.");
+            return;
+        }
+
+        int totalCost = price * quantity;
+
+        if (hero.getGold() < totalCost) {
+            showShopNotice("Shop Keeper", "Not enough gold for " + quantity + " " + itemName + ".");
+            return;
+        }
+
+        int confirm = showConfirmSync("Confirm Purchase",
+                "Purchase " + quantity + " " + itemName + "(s)"
+                        + "\nfor " + statFormat.format(totalCost) + " gold?");
+        if (confirm != JOptionPane.YES_OPTION) {
+            shopStatusLabel.setText("Purchase cancelled.");
+            return;
+        }
+
+        hero.setGold(hero.getGold() - totalCost);
+        setPotionCount(inventory, itemChoice, currentCount + quantity);
+        refreshInventoryPanel();
+        refreshHeroDashboard();
+
+        shopStatusLabel.setText("Purchased " + quantity + " " + itemName
+                + " for " + statFormat.format(totalCost) + " gold.");
+    }
+
+    private int promptShopQuantity(String itemName, int maxQuantity) {
+        if (maxQuantity <= 0) return 0;
+
+        final int[] quantity = { 0 };
+        runOnEdtSync(() -> {
+            JSpinner amountSpinner = new JSpinner(new SpinnerNumberModel(1, 1, maxQuantity, 1));
+            amountSpinner.setFont(getBodyFont(15f));
+
+            JPanel panel = new JPanel(new BorderLayout(0, 8));
+            panel.add(new JLabel("Enter amount to purchase (max " + maxQuantity + "):"), BorderLayout.NORTH);
+            panel.add(amountSpinner, BorderLayout.CENTER);
+
+            int result = JOptionPane.showConfirmDialog(frame, panel, itemName,
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (result == JOptionPane.OK_OPTION) {
+                quantity[0] = (Integer) amountSpinner.getValue();
+            }
+        });
+        return quantity[0];
+    }
+
+    private void showShopNotice(String title, String message) {
+        shopStatusLabel.setText("Choose an item, view details, or purchase a custom amount.");
+        showInfoSync(title, message);
     }
 
     private void openPrincipalOfficeGui() {
@@ -2435,19 +2856,44 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         screenLayout.show(screenPanel, screenName);
 
         boolean isBattleScreen = SCREEN_BATTLE.equals(screenName);
+        boolean isShopScreen = SCREEN_SHOP.equals(screenName);
         if (headerPanel != null) headerPanel.setVisible(!isBattleScreen);
+        if (gameShellPanel != null) {
+            gameShellPanel.setBackground(isShopScreen ? COLOR_SHOP_OUTSIDE : COLOR_BACKGROUND);
+        }
         if (headerExitButton != null) {
             boolean hideExit = SCREEN_CHARACTER.equals(screenName) || SCREEN_STORY.equals(screenName);
             headerExitButton.setVisible(!hideExit);
+            headerExitButton.setForeground(isShopScreen ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
+            headerExitButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         }
+        if (headerBackButton != null) {
+            headerBackButton.setVisible(isShopScreen);
+            headerBackButton.setForeground(isShopScreen ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
+            headerBackButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        }
+        if (headerPanel != null) {
+            headerPanel.setBackground(isShopScreen ? COLOR_SHOP_OUTSIDE : COLOR_BACKGROUND);
+            headerPanel.setOpaque(!isShopScreen);
+            headerPanel.setBorder(isShopScreen
+                    ? BorderFactory.createEmptyBorder(18, 22, 14, 22)
+                    : defaultHeaderBorder);
+        }
+        titleLabel.setForeground(isShopScreen ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
+        subtitleLabel.setForeground(isShopScreen ? COLOR_SHOP_TEXT_MUTED : COLOR_TEXT_MUTED);
         if (leftPane != null) {
-            leftPane.setBackground(isBattleScreen ? COLOR_BATTLE_PANEL : COLOR_BACKGROUND);
+            leftPane.setBackground(isBattleScreen ? COLOR_BATTLE_PANEL : isShopScreen ? COLOR_SHOP_OUTSIDE : COLOR_BACKGROUND);
+            leftPane.setOpaque(!isShopScreen);
             leftPane.setBorder(isBattleScreen ? BorderFactory.createEmptyBorder() : defaultLeftPaneBorder);
         }
         if (screenPanel != null) {
             screenPanel.setOpaque(isBattleScreen);
-            screenPanel.setBackground(isBattleScreen ? COLOR_BATTLE_PANEL : COLOR_BACKGROUND);
+            screenPanel.setBackground(isBattleScreen ? COLOR_BATTLE_PANEL : isShopScreen ? COLOR_SHOP_OUTSIDE : COLOR_BACKGROUND);
         }
+    }
+
+    private boolean isShopHeaderActive() {
+        return headerPanel != null && COLOR_SHOP_OUTSIDE.equals(headerPanel.getBackground());
     }
 
     // -------------------------------------------------------------------------

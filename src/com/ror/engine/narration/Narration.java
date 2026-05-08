@@ -5,6 +5,119 @@ import java.util.Scanner;
 public class Narration{
     static Scanner scanner = new Scanner(System.in);
 
+    public static String[] buildAcademyNarration() {
+        return new String[] {
+            "The tall gates of Mystvale Academy open with a low groan...",
+            "You pause, taking it all in, when a sudden chill brushes your shoulder...",
+            "Void appears again, calm and patient.",
+            "The Library holds ancient knowledge and quests that can strengthen you.",
+            "The Training Ground is where strength is forged.",
+            "The Principal's Office grants eligibility passes for the regions beyond the academy.",
+            "Here, you are free to choose your path."
+        };
+    }
+
+    public static String[] buildLibraryNarration() {
+        return new String[] {
+            "As you step into the library, the air grows still.",
+            "Void flickers into view beside the towering shelves.",
+            "This is Mystvale's Library. May knowledge guide you."
+        };
+    }
+
+    public static String[] buildTrainingNarration() {
+        return new String[] {
+            "The Training Ground resounds with the clash of practice weapons.",
+            "Void flickers into view.",
+            "This is where strength is forged. Accept the challenge and earn your growth."
+        };
+    }
+
+    public static String[] buildShopNarration() {
+        return new String[] {
+            "Void appears beside you, calm against the quiet sway of trees.",
+            "This is the academy's supply shop, where earned coin becomes tools of survival.",
+            "Potions and weapons line the shelves. Spend with intention."
+        };
+    }
+
+    public static String[] buildShopConversationNarration() {
+        return new String[] {
+            "A small bell jingles as you push open the shop door.",
+            "Behind the counter, Liora Moonveil lifts her gaze from an open spellbook.",
+            "Welcome to Mystic Curiosities. Handle the items wisely."
+        };
+    }
+
+    public static String[] buildPrincipalOfficeNarration() {
+        return new String[] {
+            "The doors of the Principal's Office stand tall and unyielding.",
+            "Void appears at your side.",
+            "This office is the gateway to the lands beyond the academy."
+        };
+    }
+
+    public static String[] buildArea1EligibilityNarration() {
+        return new String[] {
+            "Your first eligibility pass is granted.",
+            "The inner forest is now open to you."
+        };
+    }
+
+    public static String[] buildArea2EligibilityNarration() {
+        return new String[] {
+            "Your second eligibility pass is granted.",
+            "The swamplands now wait beyond the academy path."
+        };
+    }
+
+    public static String[] buildArea3EligibilityNarration() {
+        return new String[] {
+            "Your final eligibility pass is granted.",
+            "The Forsaken Lands are now within reach."
+        };
+    }
+
+    public static String[] buildArea1Narration() {
+        return new String[] {
+            "The trees of the inner forest rise around you.",
+            "Void drifts into view.",
+            "This is the inner forest, where lesser entities wander."
+        };
+    }
+
+    public static String[] buildArea2Narration() {
+        return new String[] {
+            "The air thickens as you step into the swamp.",
+            "Void flickers beside you.",
+            "This middle region is home to stronger, more dangerous entities."
+        };
+    }
+
+    public static String[] buildArea3Narration() {
+        return new String[] {
+            "Stone ruins and jagged towers stretch across the horizon.",
+            "Void appears with a grave expression.",
+            "This is the Forsaken Lands. Never let your guard down."
+        };
+    }
+
+    public static String[] buildSacrificeEndingNarration() {
+        return new String[] {
+            "The final battle ends, but victory asks for one last choice.",
+            "You give everything to break the darkness at its source.",
+            "Mystvale is saved, and your name becomes a quiet legend."
+        };
+    }
+
+    public static String[] buildLoopEndingNarration() {
+        return new String[] {
+            "The world shudders, then folds back into a familiar silence.",
+            "You wake with the sense that this path has been walked before.",
+            "The loop begins again."
+        };
+    }
+
     // Narration for Prologue
     public void prologueNarration() {
         String[] prologue = {

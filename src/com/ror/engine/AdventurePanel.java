@@ -6,15 +6,15 @@ import javax.swing.*;
 import javax.swing.plaf.FontUIResource;
 
 public class AdventurePanel extends JComponent {
-    private static final Color OVERLAY_DIM = new Color(60, 40, 30, 145);
-    private static final Color DIALOG_BG = new Color(90, 73, 58, 245);
-    private static final Color DIALOG_BORDER = new Color(130, 84, 70);
-    private static final Color DIALOG_TEXT = new Color(246, 240, 232);
-    private static final Color BUTTON_BG = new Color(118, 81, 53);
-    private static final Color BUTTON_BG_HOVER = new Color(132, 92, 62);
-    private static final Color BUTTON_BG_PRESSED = new Color(96, 65, 42);
-    private static final Color BUTTON_BORDER = new Color(130, 84, 70);
-    private static final Color BUTTON_TEXT = new Color(246, 240, 232);
+    private static final Color OVERLAY_DIM = new Color(12, 10, 18, 165);
+    private static final Color DIALOG_BG = new Color(30, 28, 40, 246);
+    private static final Color DIALOG_BORDER = new Color(93, 87, 111);
+    private static final Color DIALOG_TEXT = new Color(246, 239, 221);
+    private static final Color BUTTON_BG = new Color(43, 39, 58);
+    private static final Color BUTTON_BG_HOVER = new Color(58, 53, 78);
+    private static final Color BUTTON_BG_PRESSED = new Color(24, 22, 34);
+    private static final Color BUTTON_BORDER = new Color(120, 255, 225, 110);
+    private static final Color BUTTON_TEXT = new Color(246, 239, 221);
 
     private final JFrame window;
     private final Font headingFont;
