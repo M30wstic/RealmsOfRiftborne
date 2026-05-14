@@ -62,6 +62,8 @@ public class BattlePanel extends JPanel {
     private static final Color COLOR_HERO_MANA = new Color(52, 92, 156);
     private static final String COMBAT_IMAGE_DIRECTORY = "src/com/ror/models/assets/images/combat/";
     private static final String FOREST_REVERIE_BATTLE_BACKGROUND = "forest_reverie_battle_background_panel.png";
+    private static final String REVERIES_EDGE_BATTLE_BACKGROUND = "reveries_edge_battle_background_panel.png";
+    private static final String FORSAKEN_LANDS_BATTLE_BACKGROUND = "forsaken_lands_battle_background_panel.png";
     private static final String ENEMY_SUMMARY_PANEL = "enemy_summary_panel.png";
 
     private final Font headingFont;
@@ -631,9 +633,12 @@ public class BattlePanel extends JPanel {
     }
 
     public void setBattleBackgroundForArea(String areaName) {
-        battleArenaBackgroundImage = "Forest of Reverie".equals(areaName)
-                ? loadCombatImage(FOREST_REVERIE_BATTLE_BACKGROUND)
-                : null;
+        battleArenaBackgroundImage = switch (areaName) {
+            case "Forest of Reverie" -> loadCombatImage(FOREST_REVERIE_BATTLE_BACKGROUND);
+            case "Reverie's Edge" -> loadCombatImage(REVERIES_EDGE_BATTLE_BACKGROUND);
+            case "Forsaken Lands" -> loadCombatImage(FORSAKEN_LANDS_BATTLE_BACKGROUND);
+            default -> null;
+        };
 
         if (battleSpriteStrip != null) {
             battleSpriteStrip.repaint();

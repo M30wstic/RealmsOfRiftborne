@@ -611,7 +611,6 @@ public class GameWindow implements BattlePanel.BattleActionListener {
 
         JPanel mapCard = createImageCardPanel(regionMapPanelImage);
         mapCard.setLayout(new BorderLayout(10, 10));
-        mapCard.add(createMainScreenHeading("Region Map"), BorderLayout.NORTH);
 
         JPanel destinations = createImageCardPanel(travelDestinationsPanelImage);
         destinations.setLayout(new BoxLayout(destinations, BoxLayout.Y_AXIS));
