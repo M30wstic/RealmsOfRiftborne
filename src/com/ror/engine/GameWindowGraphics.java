@@ -3,9 +3,16 @@ package com.ror.engine;
 import com.ror.models.Entity;
 import com.ror.models.Hero;
 import com.ror.models.Boss.Elderthorn;
+import com.ror.models.Boss.Morgrath;
+import com.ror.models.Mage;
+import com.ror.models.Mobs.FadingWarden;
 import com.ror.models.Mobs.Goblin;
 import com.ror.models.Mobs.MudLurker;
+import com.ror.models.Mobs.ShadowAbyss;
 import com.ror.models.Mobs.Slime;
+import com.ror.models.Mobs.SwampRat;
+import com.ror.models.Mobs.VeilSerpent;
+import com.ror.models.Mobs.VoidBeast;
 import com.ror.models.Swordsman;
 
 import javax.imageio.ImageIO;
@@ -387,7 +394,8 @@ final class GameWindowGraphics {
     }
 
     boolean updateHeroSkill2Frame(Hero hero, BattlePanel battlePanel, int frameIndex) {
-        return updateHeroActionFrame(hero, battlePanel, "Neo-Skill2.png", frameIndex);
+        String sheetName = hero instanceof Mage ? "Mleux-Skill2.png" : "Neo-Skill2.png";
+        return updateHeroActionFrame(hero, battlePanel, sheetName, frameIndex);
     }
 
     boolean updateHeroAttackFrame(Hero hero, BattlePanel battlePanel, int frameIndex) {
@@ -424,7 +432,13 @@ final class GameWindowGraphics {
         if (enemy instanceof Goblin) return 132;
         if (enemy instanceof Slime) return 132;
         if (enemy instanceof MudLurker) return 145;
+        if (enemy instanceof SwampRat) return 140;
+        if (enemy instanceof VeilSerpent) return 140;
+        if (enemy instanceof ShadowAbyss) return 150;
+        if (enemy instanceof VoidBeast) return 150;
+        if (enemy instanceof FadingWarden) return 150;
         if (enemy instanceof Elderthorn) return 150;
+        if (enemy instanceof Morgrath) return 155;
         return 96;
     }
 
@@ -435,6 +449,7 @@ final class GameWindowGraphics {
 
     private int getHeroSkillSpriteSize(Hero hero) {
         if (hero instanceof Swordsman) return 190;
+        if (hero instanceof Mage) return 300;
         return 128;
     }
 
@@ -923,7 +938,13 @@ final class GameWindowGraphics {
         if (enemy instanceof Goblin) return loadEnemyImage("goblin.png");
         if (enemy instanceof Slime) return loadEnemyImage("slime.png");
         if (enemy instanceof MudLurker) return loadEnemyImage("mudlurker.png");
+        if (enemy instanceof SwampRat) return loadEnemyImage("swamprat.png");
+        if (enemy instanceof VeilSerpent) return loadEnemyImage("swamprat.png");
+        if (enemy instanceof ShadowAbyss) return loadEnemyImage("shadowabyss.png");
+        if (enemy instanceof VoidBeast) return loadEnemyImage("voidbeast.png");
+        if (enemy instanceof FadingWarden) return loadEnemyImage("fadingwarden.png");
         if (enemy instanceof Elderthorn) return loadEnemyImage("elderthorn.png");
+        if (enemy instanceof Morgrath) return loadEnemyImage("morgrath.png");
         return null;
     }
 
@@ -942,6 +963,36 @@ final class GameWindowGraphics {
         }
         if (enemy instanceof MudLurker) {
             String[] frames = { "mudlurker-frame2.png", "mudlurker-frame3.png", "mudlurker-frame4.png" };
+            if (frameIndex >= 0 && frameIndex < frames.length) {
+                return loadEnemyImage(frames[frameIndex]);
+            }
+        }
+        if (enemy instanceof SwampRat || enemy instanceof VeilSerpent) {
+            String[] frames = { "swamprat-frame2.png", "swamprat-frame3.png", "swamprat-frame4.png" };
+            if (frameIndex >= 0 && frameIndex < frames.length) {
+                return loadEnemyImage(frames[frameIndex]);
+            }
+        }
+        if (enemy instanceof ShadowAbyss) {
+            String[] frames = { "shadowabyss-frame2.png", "shadowabyss-frame3.png", "shadowabyss-frame4.png" };
+            if (frameIndex >= 0 && frameIndex < frames.length) {
+                return loadEnemyImage(frames[frameIndex]);
+            }
+        }
+        if (enemy instanceof VoidBeast) {
+            String[] frames = { "voidbeast-frame2.png", "voidbeast-frame3.png", "voidbeast-frame4.png" };
+            if (frameIndex >= 0 && frameIndex < frames.length) {
+                return loadEnemyImage(frames[frameIndex]);
+            }
+        }
+        if (enemy instanceof FadingWarden) {
+            String[] frames = { "fadingwarden-frame2.png", "fadingwarden-frame3.png", "fadingwarden-frame4.png" };
+            if (frameIndex >= 0 && frameIndex < frames.length) {
+                return loadEnemyImage(frames[frameIndex]);
+            }
+        }
+        if (enemy instanceof Morgrath) {
+            String[] frames = { "morgrath-frame2.png", "morgrath-frame3.png", "morgrath-frame4.png" };
             if (frameIndex >= 0 && frameIndex < frames.length) {
                 return loadEnemyImage(frames[frameIndex]);
             }
@@ -967,6 +1018,20 @@ final class GameWindowGraphics {
     private BufferedImage loadHeroActionFrame(Hero hero, String sheetName, int frameIndex) {
         if (hero instanceof Swordsman) {
             BufferedImage sheet = loadHeroImage("neo/skills/" + sheetName);
+            if (sheet == null) {
+                return null;
+            }
+
+            int frameCount = 3;
+            if (frameIndex < 0 || frameIndex >= frameCount) {
+                return null;
+            }
+
+            int frameWidth = sheet.getWidth() / frameCount;
+            return sheet.getSubimage(frameIndex * frameWidth, 0, frameWidth, sheet.getHeight());
+        }
+        if (hero instanceof Mage && sheetName.startsWith("Mleux-")) {
+            BufferedImage sheet = loadHeroImage("mleux/skills/" + sheetName);
             if (sheet == null) {
                 return null;
             }
