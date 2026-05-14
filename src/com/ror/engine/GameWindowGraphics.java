@@ -2,10 +2,6 @@ package com.ror.engine;
 
 import com.ror.models.Entity;
 import com.ror.models.Mobs.Goblin;
-
-import javax.imageio.ImageIO;
-import javax.swing.*;
-import javax.swing.plaf.FontUIResource;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -15,6 +11,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import javax.imageio.ImageIO;
+import javax.swing.*;
+import javax.swing.plaf.FontUIResource;
 
 final class GameWindowGraphics {
     private static final String UI_IMAGE_DIRECTORY = "assets/images/ui/";
@@ -264,7 +263,9 @@ final class GameWindowGraphics {
                 ? createLandingImageButton(landingExitButtonImage,
                         secondaryButtonWidth, secondaryButtonHeight, "EXIT")
                 : createLandingPlaceholderButton("EXIT");
-        exitButton.addActionListener(event -> onExit.run());
+
+        exitButton.addActionListener(event -> System.exit(0));
+
         bottomMenuRow.add(optionsButton);
         bottomMenuRow.add(exitButton);
 
@@ -921,9 +922,7 @@ final class GameWindowGraphics {
     }
 
     private static final class PixelButton extends JButton {
-        private static final long serialVersionUID = 1L;
-
-        private final transient ButtonSkin skin;
+        private final ButtonSkin skin;
         private final Color fallbackColor;
         private boolean rollover;
 
