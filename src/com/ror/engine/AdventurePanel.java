@@ -2,19 +2,21 @@ package com.ror.engine;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.lang.reflect.InvocationTargetException;
 import javax.swing.*;
-import javax.swing.plaf.FontUIResource;
 
 public class AdventurePanel extends JComponent {
-    private static final Color OVERLAY_DIM = new Color(60, 40, 30, 145);
-    private static final Color DIALOG_BG = new Color(90, 73, 58, 245);
-    private static final Color DIALOG_BORDER = new Color(130, 84, 70);
-    private static final Color DIALOG_TEXT = new Color(246, 240, 232);
-    private static final Color BUTTON_BG = new Color(118, 81, 53);
-    private static final Color BUTTON_BG_HOVER = new Color(132, 92, 62);
-    private static final Color BUTTON_BG_PRESSED = new Color(96, 65, 42);
-    private static final Color BUTTON_BORDER = new Color(130, 84, 70);
-    private static final Color BUTTON_TEXT = new Color(246, 240, 232);
+    private static final long serialVersionUID = 1L;
+
+    private static final Color OVERLAY_DIM = new Color(12, 10, 18, 165);
+    private static final Color DIALOG_BG = new Color(30, 28, 40, 246);
+    private static final Color DIALOG_BORDER = new Color(93, 87, 111);
+    private static final Color DIALOG_TEXT = new Color(246, 239, 221);
+    private static final Color BUTTON_BG = new Color(43, 39, 58);
+    private static final Color BUTTON_BG_HOVER = new Color(58, 53, 78);
+    private static final Color BUTTON_BG_PRESSED = new Color(24, 22, 34);
+    private static final Color BUTTON_BORDER = new Color(120, 255, 225, 110);
+    private static final Color BUTTON_TEXT = new Color(246, 239, 221);
 
     private final JFrame window;
     private final Font headingFont;
@@ -24,7 +26,7 @@ public class AdventurePanel extends JComponent {
     private final JLabel messageLabel;
     private final JPanel buttonPanel;
     private volatile int selectedIndex = -1;
-    private java.awt.SecondaryLoop secondaryLoop;
+    private transient java.awt.SecondaryLoop secondaryLoop;
     private int defaultOptionIndex = 0;
     private Timer messageTypewriterTimer;
     private Timer overlayFadeTimer;
@@ -35,32 +37,41 @@ public class AdventurePanel extends JComponent {
     private float renderAlpha = 1f;
     private boolean fadeAnimating = false;
     private boolean closeWithFade = true;
+    private boolean slotChooserMode = false;
 
     public AdventurePanel(JFrame window, Font headingFont, Font bodyFont) {
         this.window = window;
         this.headingFont = headingFont != null ? headingFont : new Font("Serif", Font.BOLD, 28);
         this.bodyFont = bodyFont != null ? bodyFont : new Font("SansSerif", Font.PLAIN, 16);
+        dialogBox = new JPanel(new BorderLayout(16, 16));
+        titleLabel = new JLabel("", SwingConstants.CENTER);
+        messageLabel = new JLabel("", SwingConstants.CENTER);
+        buttonPanel = new JPanel();
+    }
+
+    public static AdventurePanel create(JFrame window, Font headingFont, Font bodyFont) {
+        AdventurePanel panel = new AdventurePanel(window, headingFont, bodyFont);
+        panel.initializeComponent();
+        return panel;
+    }
+
+    private void initializeComponent() {
         setOpaque(false);
         setLayout(null);
-
-        dialogBox = new JPanel(new BorderLayout(16, 16));
         dialogBox.setOpaque(true);
         dialogBox.setBackground(DIALOG_BG);
         dialogBox.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(DIALOG_BORDER, 2),
                 BorderFactory.createEmptyBorder(24, 24, 24, 24)));
 
-        titleLabel = new JLabel("", SwingConstants.CENTER);
         titleLabel.setForeground(DIALOG_TEXT);
         titleLabel.setFont(headingFont.deriveFont(Font.BOLD, headingFont.getSize2D()));
 
-        messageLabel = new JLabel("", SwingConstants.CENTER);
         messageLabel.setForeground(DIALOG_TEXT);
         messageLabel.setFont(bodyFont.deriveFont(Font.PLAIN, bodyFont.getSize2D()));
         messageLabel.setVerticalAlignment(SwingConstants.CENTER);
         messageLabel.setOpaque(false);
 
-        buttonPanel = new JPanel();
         buttonPanel.setOpaque(false);
         buttonPanel.setLayout(new BorderLayout());
 
@@ -113,7 +124,9 @@ public class AdventurePanel extends JComponent {
     @Override
     public void doLayout() {
         super.doLayout();
-        dialogBox.setSize(Math.min(getWidth() - 120, 680), Math.min(getHeight() - 120, 260));
+        int dialogWidth = slotChooserMode ? 760 : 680;
+        int dialogHeight = slotChooserMode ? 360 : 260;
+        dialogBox.setSize(Math.min(getWidth() - 80, dialogWidth), Math.min(getHeight() - 80, dialogHeight));
         dialogBox.setLocation((getWidth() - dialogBox.getWidth()) / 2, (getHeight() - dialogBox.getHeight()) / 2);
 
         for (Component child : dialogBox.getComponents()) {
@@ -153,6 +166,42 @@ public class AdventurePanel extends JComponent {
         return showDialog(title, message, labels, defaultIndex, true, true);
     }
 
+    public int showSlotChooser(String title, String prompt, Load.SlotInfo[] slots, boolean allowEmptySlots) {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            final int[] result = new int[] { JOptionPane.CLOSED_OPTION };
+            try {
+                SwingUtilities.invokeAndWait(
+                        () -> result[0] = showSlotChooser(title, prompt, slots, allowEmptySlots));
+            } catch (InterruptedException | InvocationTargetException ignored) {
+            }
+            return result[0];
+        }
+
+        slotChooserMode = true;
+        titleLabel.setText(title);
+        fullMessage = prompt == null ? "" : prompt;
+        messageLabel.setText(formatMessage(fullMessage));
+        defaultOptionIndex = 0;
+        selectedIndex = -1;
+        closeWithFade = true;
+        populateSlotCards(slots, allowEmptySlots);
+
+        setVisible(true);
+        window.getGlassPane().setVisible(true);
+        window.getGlassPane().requestFocusInWindow();
+        requestFocusInWindow();
+        setRenderAlpha(0f);
+        startOverlayFadeIn(null);
+
+        secondaryLoop = Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
+        if (secondaryLoop != null) {
+            secondaryLoop.enter();
+        }
+
+        slotChooserMode = false;
+        return selectedIndex;
+    }
+
     private int showDialog(String title, String message, String[] buttons, int defaultButtonIndex, boolean fadeIn,
             boolean fadeOut) {
         if (!SwingUtilities.isEventDispatchThread()) {
@@ -160,11 +209,12 @@ public class AdventurePanel extends JComponent {
             try {
                 SwingUtilities.invokeAndWait(
                         () -> result[0] = showDialog(title, message, buttons, defaultButtonIndex, fadeIn, fadeOut));
-            } catch (Exception ignored) {
+            } catch (InterruptedException | InvocationTargetException ignored) {
             }
             return result[0];
         }
 
+        slotChooserMode = false;
         titleLabel.setText(title);
         fullMessage = message == null ? "" : message;
         messageLabel.setText(formatMessage(""));
@@ -246,6 +296,108 @@ public class AdventurePanel extends JComponent {
         buttonPanel.add(row, BorderLayout.CENTER);
         buttonPanel.revalidate();
         buttonPanel.repaint();
+    }
+
+    private void populateSlotCards(Load.SlotInfo[] slots, boolean allowEmptySlots) {
+        buttonPanel.removeAll();
+
+        JPanel wrapper = new JPanel(new BorderLayout(0, 14));
+        wrapper.setOpaque(false);
+
+        JPanel cards = new JPanel(new GridLayout(1, Math.max(1, slots.length), 12, 0));
+        cards.setOpaque(false);
+        cards.setName("buttonRow");
+
+        for (int i = 0; i < slots.length; i++) {
+            Load.SlotInfo slot = slots[i];
+            final int index = i;
+            JButton button = createSlotButton(slot);
+            boolean selectable = slot.isReadable() && (allowEmptySlots || slot.isOccupied());
+            button.setEnabled(selectable);
+            button.addActionListener(event -> closeOverlay(index));
+            cards.add(button);
+        }
+
+        JButton cancelButton = createOverlayButton("Cancel", 160, 38);
+        cancelButton.addActionListener(event -> closeOverlay(JOptionPane.CLOSED_OPTION));
+
+        JPanel cancelRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        cancelRow.setOpaque(false);
+        cancelRow.add(cancelButton);
+
+        wrapper.add(cards, BorderLayout.CENTER);
+        wrapper.add(cancelRow, BorderLayout.SOUTH);
+        buttonPanel.add(wrapper, BorderLayout.CENTER);
+        buttonPanel.revalidate();
+        buttonPanel.repaint();
+    }
+
+    private JButton createSlotButton(Load.SlotInfo slot) {
+        JButton button = createOverlayButton(buildSlotCardText(slot), 205, 118);
+        button.setHorizontalAlignment(SwingConstants.LEFT);
+        button.setVerticalAlignment(SwingConstants.TOP);
+        button.setFont(bodyFont.deriveFont(Font.BOLD, 13f));
+        button.setMargin(new Insets(8, 12, 8, 12));
+        return button;
+    }
+
+    private JButton createOverlayButton(String text, int width, int height) {
+        JButton button = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                Graphics2D graphics2D = (Graphics2D) graphics.create();
+                graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                ButtonModel model = getModel();
+                Color fill = getBackground();
+                if (!isEnabled()) {
+                    fill = new Color(31, 29, 42);
+                } else if (model.isPressed()) {
+                    fill = BUTTON_BG_PRESSED;
+                } else if (model.isRollover()) {
+                    fill = BUTTON_BG_HOVER;
+                }
+                graphics2D.setColor(fill);
+                graphics2D.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                graphics2D.dispose();
+                super.paintComponent(graphics);
+            }
+
+            @Override
+            protected void paintBorder(Graphics graphics) {
+                Graphics2D graphics2D = (Graphics2D) graphics.create();
+                graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                graphics2D.setColor(isEnabled() ? BUTTON_BORDER : new Color(90, 86, 105, 90));
+                graphics2D.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                graphics2D.dispose();
+            }
+        };
+        button.setFocusable(false);
+        button.setForeground(BUTTON_TEXT);
+        button.setBackground(BUTTON_BG);
+        button.setRolloverEnabled(true);
+        button.setOpaque(false);
+        button.setContentAreaFilled(false);
+        button.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
+        button.setFocusPainted(false);
+        button.setPreferredSize(new Dimension(width, height));
+        return button;
+    }
+
+    private String buildSlotCardText(Load.SlotInfo slot) {
+        if (!slot.isOccupied()) {
+            return "<html><b>Slot " + slot.getSlot() + "</b><br><br>Empty<br><br>Ready for a new save</html>";
+        }
+        if (!slot.isReadable()) {
+            return "<html><b>Slot " + slot.getSlot() + "</b><br><br>Unreadable save<br><br>Cannot load this slot</html>";
+        }
+
+        String heroName = escapeHtml(slot.getHeroName() == null ? "Unknown Hero" : slot.getHeroName());
+        String heroClass = escapeHtml(slot.getHeroClass() == null ? "Unknown Class" : slot.getHeroClass());
+        String savedAt = escapeHtml(slot.getSavedAt() == null ? "Unknown time" : slot.getSavedAt());
+        return "<html><b>Slot " + slot.getSlot() + "</b><br>"
+                + heroName + "<br>"
+                + heroClass + " | Lv. " + slot.getLevel() + "<br><br>"
+                + "Saved:<br>" + savedAt + "</html>";
     }
 
     private void chooseDefaultOption() {
@@ -382,7 +534,16 @@ public class AdventurePanel extends JComponent {
         if (message == null) {
             return "";
         }
-        String html = message.replace("\n", "<br>");
+        String html = escapeHtml(message).replace("\n", "<br>");
         return "<html><div style='text-align:center;margin:0px;padding:0px;'>" + html + "</div></html>";
+    }
+
+    private String escapeHtml(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
     }
 }

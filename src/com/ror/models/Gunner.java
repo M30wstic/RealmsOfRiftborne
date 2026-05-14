@@ -7,7 +7,7 @@ public class Gunner extends Hero {
 
     public Gunner() {
         super(4000, 535, 600, 125, 150, 1, 
-        "Aria Caelith", "Gunner", "Rusty Dual Pistol", 
+        "Fehld, the Ashened", "Gunner", "Marksman Rifle", 
         "Crimson Barrage", "Frostwind Bullet", "Judgement Phantom", 
         150, 275, 450, 
         1500, 1530, 650);
@@ -15,8 +15,6 @@ public class Gunner extends Hero {
         this.skillCd1 = 4;
         this.skillCd2 = 7;
         this.skillCdU = 10;
-
-        setGunnerCharacterChosen(true); 
     }
 
 
@@ -77,7 +75,7 @@ public class Gunner extends Hero {
 
         if(enemy.dodgeHeroAtk(enemy, hero)) return;
 
-         int damageDealt = damage - enemy.getDefense()/2;
+        int damageDealt = damage - enemy.getDefense()/2;
 
         System.out.println(getSkill2() + " deals " + df.format(damageDealt) + " damage!");
 

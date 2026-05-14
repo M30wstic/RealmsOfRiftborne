@@ -4,6 +4,8 @@ import javax.swing.*;
 import java.awt.*;
 
 public class BattlePanel extends JPanel {
+    private static final long serialVersionUID = 1L;
+
     // Battle-related fields moved from GameWindow
     private final JLabel battleTitleValue = new JLabel("Battle");
     private final JLabel battleRoundValue = new JLabel("Round 1");
@@ -51,7 +53,7 @@ public class BattlePanel extends JPanel {
 
     private final Font headingFont;
     private final Font bodyFont;
-    private final BattleActionListener actionListener;
+    private final transient BattleActionListener actionListener;
 
     public interface BattleActionListener {
         void onBattleAction(int action);
@@ -63,7 +65,12 @@ public class BattlePanel extends JPanel {
         this.headingFont = headingFont;
         this.bodyFont = bodyFont;
         this.actionListener = actionListener;
-        initialize();
+    }
+
+    public static BattlePanel create(Font headingFont, Font bodyFont, BattleActionListener actionListener) {
+        BattlePanel panel = new BattlePanel(headingFont, bodyFont, actionListener);
+        panel.initialize();
+        return panel;
     }
 
     private void initialize() {

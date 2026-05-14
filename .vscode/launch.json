@@ -3,13 +3,24 @@
   "configurations": [
     {
       "type": "java",
-      "name": "Run Main (Mystvale)",
+      "name": "Debug Main",
       "request": "launch",
       "mainClass": "com.ror.Main",
+      "cwd": "${workspaceFolder}",
       "classPaths": [
         "${workspaceFolder}/bin"
       ],
+      "preLaunchTask": "Build Game"
+    },
+    {
+      "type": "java",
+      "name": "Run Main",
+      "request": "launch",
+      "mainClass": "com.ror.Main",
       "cwd": "${workspaceFolder}",
+      "classPaths": [
+        "${workspaceFolder}/bin"
+      ],
       "preLaunchTask": "Build Game"
     }
   ]

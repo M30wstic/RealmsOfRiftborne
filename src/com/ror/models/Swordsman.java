@@ -7,7 +7,7 @@ public class Swordsman extends Hero {
 
     public Swordsman() {
         super(4000, 500, 700, 350, 100, 1, 
-            "Kael Solmere", "Swordsman", "Wooden Sword", 
+            "Neo, the Timeblade", "Swordsman", "Shining Sword", 
             "Blade Dance", "Blinding Silhouette", "Shattered Sun", 
             285, 345, 565, 
             1450, 1700, 725);
@@ -16,8 +16,6 @@ public class Swordsman extends Hero {
         this.skillCd2 = 8;
         this.skillCdU = 10;
         // levelUp(101); // test purpose
-
-        setSwordmanCharacterChosen(true); 
     }
     
     DecimalFormat df = new DecimalFormat("#,##0");

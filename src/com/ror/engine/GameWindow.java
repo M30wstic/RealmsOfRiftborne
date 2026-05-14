@@ -1,31 +1,30 @@
 package com.ror.engine;
 
+import com.ror.engine.narration.Narration;
 import com.ror.models.*;
-import com.ror.models.Boss.*; //God forbid we have two Inventory classes and we import the wrong one by accident
+import com.ror.models.Boss.*;
 import com.ror.models.Inventory.Inventory;
 import com.ror.models.Mobs.*;
 import com.ror.models.training.StatProgress;
+import com.ror.utils.sounds.SoundManager;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.Border;
-import javax.swing.plaf.FontUIResource;
 
 public class GameWindow implements BattlePanel.BattleActionListener {
 
-    // Directory ug string assignments for loading assets and managing card layout
-    // screens. If you add new screens or asset folders, add new constants here to
-    // keep things organized.
-    private static final String UI_IMAGE_DIRECTORY = "assets/images/ui/";
-    private static final String ENEMY_IMAGE_DIRECTORY = "assets/images/enemies/";
+    // Asset directories and screen card names
     private static final String ROOT_LANDING = "landing";
     private static final String ROOT_GAME = "game";
     private static final String SCREEN_HOME = "home";
@@ -41,13 +40,18 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private final DecimalFormat statFormat = new DecimalFormat("#,##0");
     private final Random random = new Random();
     private final StatProgress statProgress = new StatProgress();
+    private final GameWindowGraphics graphics = new GameWindowGraphics();
+    private final Icon smallHealthPotionIcon = loadItemIcon("small-health-potion.png");
+    private final Icon mediumHealthPotionIcon = loadItemIcon("medium-health-potion.png");
+    private final Icon largeHealthPotionIcon = loadItemIcon("large-health-potion.png");
+    private final Icon smallManaPotionIcon = loadItemIcon("small-mana-potion.png");
+    private final Icon mediumManaPotionIcon = loadItemIcon("medium-mana-potion.png");
+    private final Icon largeManaPotionIcon = loadItemIcon("large-mana-potion.png");
+    private final Icon shopkeeperPrincipalIcon = loadPixelUiIcon("shopkeeper-principal.png", 380, 380);
+    private final BufferedImage shopBackgroundImage = graphics.loadUIImage("shop-background.jpg");
+    private final BufferedImage shopHeaderBackgroundImage = graphics.loadUIImage("shop-header-background.png");
 
-    // Fallback fonts if wala ang custom fonts
-    private Font headingFont = new Font("Serif", Font.BOLD, 28);
-    private Font bodyFont = new Font("SansSerif", Font.PLAIN, 14);
-    private float headingFontSize = 28f;
-    private float bodyFontSize = 14f;
-
+    // Legacy console area components
     private final JTextArea outputArea = new JTextArea();
     private final JTextField inputField = new JTextField();
     private final JButton sendButton = new JButton("Enter");
@@ -58,38 +62,49 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private static final Pattern INLINE_YES_NO_PROMPT = Pattern.compile(
             "\\n?[^\\n]*\\(y/n\\):\\s*");
 
+    // Layout
     private final CardLayout rootLayout = new CardLayout();
     private final JPanel rootPanel = new JPanel(rootLayout);
     private final CardLayout screenLayout = new CardLayout();
     private final JPanel screenPanel = new JPanel(screenLayout);
 
-    // Theme colors who the hell reads RGBA colors, gamit sa uban functions like
-    // panels
-    private static final Color COLOR_BACKGROUND = new Color(227, 221, 212); // warm stone background
-    private static final Color COLOR_PANEL = new Color(239, 235, 228); // parchment panel fill
+    // Theme colors
+    private static final Color COLOR_BACKGROUND = new Color(227, 221, 212);
+    private static final Color COLOR_PANEL = new Color(239, 235, 228);
     private static final Color COLOR_BATTLE_PANEL = new Color(128, 99, 84);
     private static final Color COLOR_BATTLE_SURFACE = new Color(147, 119, 99);
     private static final Color COLOR_BATTLE_BG = new Color(71, 54, 44);
     private static final Color COLOR_BATTLE_PLACEHOLDER = new Color(125, 100, 88);
     private static final Color COLOR_BATTLE_BORDER = new Color(109, 88, 70);
-    private static final Color COLOR_TEXT_DARK = new Color(46, 31, 20); // deep umber text
-    private static final Color COLOR_TEXT_MUTED = new Color(106, 79, 60); // muted bronze text
+    private static final Color COLOR_TEXT_DARK = new Color(46, 31, 20);
+    private static final Color COLOR_TEXT_MUTED = new Color(106, 79, 60);
     private static final Color COLOR_BORDER = new Color(145, 114, 91);
-    private static final Color COLOR_HERO_HP = new Color(164, 54, 54); // elderberry red (HP bar)
-    private static final Color COLOR_HERO_MANA = new Color(52, 92, 156); // deep royal blue (Mana bar)
+    private static final Color COLOR_BUTTON_PRIMARY = new Color(0x0B1033);
+    private static final Color COLOR_BUTTON_BORDER = new Color(0x2B356E);
+    private static final Color COLOR_SHOP_OUTSIDE = new Color(30, 28, 40);
+    private static final Color COLOR_SHOP_TEXT = new Color(246, 239, 221);
+    private static final Color COLOR_SHOP_TEXT_MUTED = new Color(211, 190, 154);
+    private static final Color COLOR_SHOP_BORDER = new Color(93, 87, 111);
+    private static final Color COLOR_HERO_HP = new Color(164, 54, 54);
+    private static final Color COLOR_HERO_MANA = new Color(52, 92, 156);
+    private static final Color COLOR_CHARSEL_BACKGROUND = new Color(227, 221, 212);
+    private static final Color COLOR_CHARSEL_PANEL = new Color(239, 235, 228);
+    private static final Color COLOR_CHARSEL_TEXT_DARK = new Color(46, 31, 20);
+    private static final Color COLOR_CHARSEL_TEXT_MUTED = new Color(106, 79, 60);
 
-    private static final Color COLOR_CHARSEL_BACKGROUND = new Color(227, 221, 212); // warm stone background
-    private static final Color COLOR_CHARSEL_PANEL = new Color(239, 235, 228); // parchment panel fill
-    private static final Color COLOR_CHARSEL_TEXT_DARK = new Color(46, 31, 20); // deep umber text
-    private static final Color COLOR_CHARSEL_TEXT_MUTED = new Color(106, 79, 60); // muted bronze text
-
+    // Header components
     private final JLabel titleLabel = new JLabel("Mystvale Academy");
     private final JLabel subtitleLabel = new JLabel("GUI RPG");
     private JPanel headerPanel;
+    private JButton headerBackButton;
+    private JButton headerSaveButton;
     private JButton headerExitButton;
+    private JPanel gameShellPanel;
     private JPanel leftPane;
     private Border defaultLeftPaneBorder;
+    private Border defaultHeaderBorder;
 
+    // Hero dashboard components
     private final JLabel heroNameValue = new JLabel("-");
     private final JLabel heroClassValue = new JLabel("-");
     private final JLabel heroLevelValue = new JLabel("-");
@@ -97,10 +112,12 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private final JProgressBar hpBar = new JProgressBar();
     private final JProgressBar manaBar = new JProgressBar();
 
+    // Journey status labels
     private final JLabel journeyLocationLabel = createBody("Current location: No hero selected");
     private final JLabel journeyCompletionLabel = createBody("No hero chosen yet.");
     private final JLabel journeyObjectivesLabel = createBody("No objectives yet. Choose a hero to start.");
 
+    // Inventory panel labels
     private final JLabel inventorySummary = new JLabel("No hero selected.");
     private final JLabel smallHealthCount = new JLabel("0");
     private final JLabel mediumHealthCount = new JLabel("0");
@@ -108,9 +125,25 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private final JLabel smallManaCount = new JLabel("0");
     private final JLabel mediumManaCount = new JLabel("0");
     private final JLabel largeManaCount = new JLabel("0");
+
+    // Shop labels
     private final JLabel shopGoldLabel = new JLabel("Gold: -");
     private final JLabel shopStatusLabel = new JLabel("Choose an item and quantity.");
+    private static final int[] SHOP_PRICES = { 450, 1350, 2750, 450, 1350, 2750 };
+    private static final String[] SHOP_ITEM_NAMES = {
+            "Small Health Potion", "Medium Health Potion", "Large Health Potion",
+            "Small Mana Potion", "Medium Mana Potion", "Large Mana Potion"
+    };
+    private static final String[] SHOP_ITEM_DETAILS = {
+            "Restores 20% HP.",
+            "Restores 45% HP.",
+            "Restores 70% HP.",
+            "Restores 20% Mana.",
+            "Restores 45% Mana.",
+            "Restores 70% Mana."
+    };
 
+    // Profile panel labels
     private final JLabel profileName = new JLabel("-");
     private final JLabel profileClass = new JLabel("-");
     private final JLabel profileWeapon = new JLabel("-");
@@ -122,6 +155,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private final JLabel profileSkill2 = new JLabel("-");
     private final JLabel profileUltimate = new JLabel("-");
 
+    // Story screen components
     private final JTextArea storyTextArea = new JTextArea();
     private final JLabel storyTitleLabel = new JLabel("Story");
     private final JLabel storyProgressLabel = new JLabel("Scene 1 / 1");
@@ -129,6 +163,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private String currentStoryLine = "";
     private static final int STORY_TYPEWRITER_DELAY_MS = 14;
 
+    // Area / quick-choice buttons (assigned during build)
     private JButton forestButton;
     private JButton swampButton;
     private JButton forsakenButton;
@@ -140,10 +175,12 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private JButton yesChoiceButton;
     private JButton noChoiceButton;
 
+    // Battle action synchronization
     private final Object battleActionLock = new Object();
     private volatile Integer pendingBattleAction = null;
     private final transitions transitionManager = new transitions();
 
+    // State
     private Hero hero;
     private String[] currentStorySequence = new String[0];
     private int currentStoryIndex = 0;
@@ -151,36 +188,41 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     private JFrame frame;
     private AdventurePanel overlay;
     private BattlePanel battlePanel;
-    private BufferedImage landingBackground;
-    private final ButtonSkin primaryButtonSkin;
-    private final ButtonSkin secondaryButtonSkin;
 
+    // Piped streams for legacy console I/O
     private final PipedInputStream gameInputStream;
     private final PipedOutputStream gameInputWriter;
 
-    public GameWindow() {
-        loadFonts();
+    // -------------------------------------------------------------------------
+    // Constructor
+    // -------------------------------------------------------------------------
 
+    public GameWindow() {
         try {
             gameInputStream = new PipedInputStream();
             gameInputWriter = new PipedOutputStream(gameInputStream);
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to initialize GUI input stream.", exception);
         }
-
-        landingBackground = loadLandingBackground();
-        // Main screen ra guro
-        primaryButtonSkin = loadButtonSkin("button-primary");
-        secondaryButtonSkin = loadButtonSkin("button-secondary");
     }
+
+    // -------------------------------------------------------------------------
+    // Launch
+    // -------------------------------------------------------------------------
 
     public void launchGame() {
         wireConsoleStreams();
         frame = buildFrame();
         setupBattleBackspaceBinding();
         frame.setVisible(true);
+            System.out.println("DEBUG: Working Directory = " + System.getProperty("user.dir"));
         showLandingScreen();
+        SoundManager.playMusic("src/com/ror/models/assets/sounds/titleScreen.wav");
     }
+
+    // -------------------------------------------------------------------------
+    // Frame + shell
+    // -------------------------------------------------------------------------
 
     private JFrame buildFrame() {
         JFrame window = new JFrame("Mystvale Academy RPG");
@@ -190,36 +232,54 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         window.setResizable(false);
         window.setContentPane(rootPanel);
 
-        overlay = new AdventurePanel(window, getHeadingFont(30f), getBodyFont(16f));
+        overlay = AdventurePanel.create(window, getHeadingFont(30f), getBodyFont(16f));
         window.setGlassPane(overlay);
 
-        battlePanel = new BattlePanel(getHeadingFont(30f), getBodyFont(16f), this);
+        battlePanel = BattlePanel.create(getHeadingFont(30f), getBodyFont(16f), this);
 
         rootPanel.add(buildLandingScreen(), ROOT_LANDING);
         rootPanel.add(buildGameShell(), ROOT_GAME);
         window.setLocationRelativeTo(null);
 
+        window.addWindowListener(new java.awt.event.WindowAdapter() {
+        @Override
+        public void windowClosing(java.awt.event.WindowEvent e) {
+            System.out.println("Closing game... stopping audio.");
+            SoundManager.shutdownSound();
+            System.exit(0);
+        }
+    });
+
         return window;
     }
 
     private JPanel buildGameShell() {
-        // Root container for in-game interface (header + main content area).
-        JPanel panel = new JPanel(new BorderLayout(18, 18));
+        JPanel panel = new JPanel(new BorderLayout(18, 0)) {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                if (COLOR_SHOP_OUTSIDE.equals(getBackground()) && shopHeaderBackgroundImage != null) {
+                    Graphics2D g2 = (Graphics2D) graphicsContext.create();
+                    paintShopSkyBackground(g2, getWidth(), getHeight(), 92);
+                    g2.dispose();
+                    return;
+                }
+                super.paintComponent(graphicsContext);
+            }
+        };
+        gameShellPanel = panel;
         panel.setBackground(COLOR_BACKGROUND);
 
         headerPanel = buildHeader();
         leftPane = buildLeftPane();
 
-        // Header at top, main content (with card layout) center.
         panel.add(headerPanel, BorderLayout.NORTH);
         panel.add(leftPane, BorderLayout.CENTER);
         return panel;
     }
 
     private void setupBattleBackspaceBinding() {
-        if (frame == null) {
-            return;
-        }
+        if (frame == null) return;
+
         InputMap inputMap = frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
         ActionMap actionMap = frame.getRootPane().getActionMap();
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "battle.restoreButtons");
@@ -231,10 +291,24 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         });
     }
 
+    // -------------------------------------------------------------------------
+    // Header
+    // -------------------------------------------------------------------------
+
     private JPanel buildHeader() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                if (COLOR_SHOP_OUTSIDE.equals(getBackground())) {
+                    return;
+                }
+                super.paintComponent(graphicsContext);
+            }
+        };
         panel.setBorder(BorderFactory.createEmptyBorder(18, 22, 0, 22));
+        defaultHeaderBorder = panel.getBorder();
         panel.setBackground(COLOR_BACKGROUND);
+        panel.setOpaque(false);
 
         titleLabel.setFont(getHeadingFont(30f));
         titleLabel.setForeground(COLOR_TEXT_DARK);
@@ -249,23 +323,68 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         textBlock.add(Box.createVerticalStrut(4));
         textBlock.add(subtitleLabel);
 
+        headerBackButton = new JButton("Back to Academy");
+        headerBackButton.setFont(getBodyFont(13f).deriveFont(Font.BOLD, 13f));
+        headerBackButton.setForeground(COLOR_TEXT_DARK);
+        headerBackButton.setFocusPainted(false);
+        headerBackButton.setContentAreaFilled(false);
+        headerBackButton.setOpaque(false);
+        headerBackButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        headerBackButton.setPreferredSize(new Dimension(140, 34));
+        headerBackButton.setVisible(false);
+        headerBackButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent event) {
+                headerBackButton.setForeground(isShopHeaderActive() ? COLOR_SHOP_TEXT_MUTED : COLOR_TEXT_MUTED);
+            }
+            @Override
+            public void mouseExited(MouseEvent event) {
+                headerBackButton.setForeground(isShopHeaderActive() ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
+            }
+        });
+        headerBackButton.addActionListener(event -> {
+            subtitleLabel.setText("Explore Mystvale Academy.");
+            refreshHeroDashboard();
+            showScreen(SCREEN_ACADEMY);
+        });
+
+        headerSaveButton = new JButton("Save");
+        headerSaveButton.setFont(getBodyFont(13f).deriveFont(Font.BOLD, 13f));
+        headerSaveButton.setForeground(COLOR_TEXT_DARK);
+        headerSaveButton.setFocusPainted(false);
+        headerSaveButton.setContentAreaFilled(false);
+        headerSaveButton.setOpaque(false);
+        headerSaveButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        headerSaveButton.setPreferredSize(new Dimension(90, 34));
+        headerSaveButton.setVisible(false);
+        headerSaveButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent event) {
+                headerSaveButton.setForeground(isShopHeaderActive() ? COLOR_SHOP_TEXT_MUTED : COLOR_TEXT_MUTED);
+            }
+            @Override
+            public void mouseExited(MouseEvent event) {
+                headerSaveButton.setForeground(isShopHeaderActive() ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
+            }
+        });
+        headerSaveButton.addActionListener(event -> saveCurrentGame());
+
         headerExitButton = new JButton("Exit");
         headerExitButton.setFont(getBodyFont(13f).deriveFont(Font.BOLD, 13f));
         headerExitButton.setForeground(COLOR_TEXT_DARK);
         headerExitButton.setFocusPainted(false);
         headerExitButton.setContentAreaFilled(false);
         headerExitButton.setOpaque(false);
-        headerExitButton.setBorder(BorderFactory.createLineBorder(COLOR_BORDER, 1));
+        headerExitButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         headerExitButton.setPreferredSize(new Dimension(90, 34));
         headerExitButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent event) {
-                headerExitButton.setBorder(BorderFactory.createLineBorder(new Color(118, 81, 53), 1));
+                headerExitButton.setForeground(isShopHeaderActive() ? COLOR_SHOP_TEXT_MUTED : COLOR_TEXT_MUTED);
             }
-
             @Override
             public void mouseExited(MouseEvent event) {
-                headerExitButton.setBorder(BorderFactory.createLineBorder(COLOR_BORDER, 1));
+                headerExitButton.setForeground(isShopHeaderActive() ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
             }
         });
         headerExitButton.addActionListener(event -> {
@@ -275,14 +394,20 @@ public class GameWindow implements BattlePanel.BattleActionListener {
             }
         });
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         actions.setOpaque(false);
+        actions.add(headerBackButton);
+        actions.add(headerSaveButton);
         actions.add(headerExitButton);
 
         panel.add(textBlock, BorderLayout.WEST);
         panel.add(actions, BorderLayout.EAST);
         return panel;
     }
+
+    // -------------------------------------------------------------------------
+    // Left pane + screen panel
+    // -------------------------------------------------------------------------
 
     private JPanel buildLeftPane() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -303,6 +428,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         screenPanel.add(battlePanel, SCREEN_BATTLE);
 
         panel.add(screenPanel, BorderLayout.CENTER);
+
         return panel;
     }
 
@@ -373,6 +499,10 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         return panel;
     }
 
+    // -------------------------------------------------------------------------
+    // Screen builders
+    // -------------------------------------------------------------------------
+    
     private JPanel buildHomeScreen() {
         JPanel panel = createCardPanel();
 
@@ -406,51 +536,57 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         panel.setBackground(COLOR_CHARSEL_BACKGROUND);
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(COLOR_BORDER, 1),
-                BorderFactory.createEmptyBorder(20, 24, 20, 24)));
+                BorderFactory.createEmptyBorder(25, 28, 25, 24)));
 
-        JLabel heading = createHeading("Choose Character");
+        JLabel heading = new JLabel("CHOOSE YOUR HERO");
+        heading.setFont(getHeadingFont(26f));
         heading.setForeground(COLOR_CHARSEL_TEXT_DARK);
+        heading.setAlignmentX(Component.CENTER_ALIGNMENT);
+        heading.setHorizontalAlignment(SwingConstants.CENTER);
+
+        /*JLabel introLabel = new JLabel("Every path is different. Pick the one that speaks to you.");
+        introLabel.setFont(getHeadingFont(26f));
+        introLabel.setForeground(COLOR_CHARSEL_TEXT_DARK);
+        introLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        introLabel.setHorizontalAlignment(SwingConstants.CENTER);*/
+
+        //panel.add(Box.createVerticalStrut(8));
         panel.add(heading);
-        panel.add(Box.createVerticalStrut(8));
-        JLabel introLabel = createBody("Pick your character.");
-        introLabel.setForeground(COLOR_CHARSEL_TEXT_MUTED);
-        panel.add(introLabel);
-        panel.add(Box.createVerticalStrut(18));
+        //panel.add(Box.createVerticalStrut(6));
+        //panel.add(introLabel);
+        panel.add(Box.createVerticalStrut(15));
 
-        // If you later add separate image paths per hero, these are the three
-        // createCharacterButton(...) calls to update.
-        panel.add(createCharacterButton(
-                "Swordsman",
-                "Frontline fighter",
+        JPanel cardsRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 24, 0));
+        cardsRow.setOpaque(false);
+        cardsRow.setAlignmentX(Component.CENTER_ALIGNMENT);
+        cardsRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 520));
+
+        cardsRow.add(createCharacterButton(
+                "Swordsman", "Frontline Fighter",
                 () -> selectHero(new Swordsman())));
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(createCharacterButton(
-                "Gunner",
-                "Ranged attacker",
+        cardsRow.add(createCharacterButton(
+                "Gunner", "Ranged Attacker",
                 () -> selectHero(new Gunner())));
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(createCharacterButton(
-                "Mage",
-                "Spell caster",
+        cardsRow.add(createCharacterButton(
+                "Mage", "Spell Caster",
                 () -> selectHero(new Mage())));
-        panel.add(Box.createVerticalStrut(18));
 
-        JButton backButton = createCharacterSelectButton("Back to Main Page");
-        backButton.addActionListener(event -> {
-            showLandingScreen();
-        });
+        panel.add(cardsRow);
+        panel.add(Box.createVerticalStrut(25));
 
+        JButton backButton = createCharacterSelectButton("← Back to Title");
+        backButton.addActionListener(event -> showLandingScreen());
+        backButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        backButton.setMaximumSize(new Dimension(220, 44));
         panel.add(backButton);
         panel.add(Box.createVerticalGlue());
         return panel;
     }
 
     private JPanel buildMainScreen() {
-        // Main game dashboard with adventure, status, map and travel controls.
         JPanel panel = new JPanel(new BorderLayout(12, 12));
         panel.setBackground(COLOR_PANEL);
 
-        // Top row: Adventure overview + journey status
         JPanel topRow = new JPanel(new GridLayout(1, 2, 12, 0));
         topRow.setBackground(COLOR_PANEL);
 
@@ -464,35 +600,28 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         statusPanel.setLayout(new BoxLayout(statusPanel, BoxLayout.Y_AXIS));
         statusPanel.add(createHeading("Journey Status"));
         statusPanel.add(Box.createVerticalStrut(10));
-
         statusPanel.add(journeyLocationLabel);
         statusPanel.add(Box.createVerticalStrut(8));
-
         statusPanel.add(journeyCompletionLabel);
         statusPanel.add(Box.createVerticalStrut(10));
-
         statusPanel.add(createHeading("Objectives"));
         statusPanel.add(Box.createVerticalStrut(8));
-
         statusPanel.add(journeyObjectivesLabel);
 
         topRow.add(adventPanel);
         topRow.add(statusPanel);
 
-        // Middle row: region map + travel destinations
         JPanel midRow = new JPanel(new BorderLayout(12, 12));
         midRow.setOpaque(false);
 
         JPanel mapCard = createCardPanel();
         mapCard.setLayout(new BorderLayout(10, 10));
-        JLabel mapTitle = createHeading("Region Map");
-        mapCard.add(mapTitle, BorderLayout.NORTH);
+        mapCard.add(createHeading("Region Map"), BorderLayout.NORTH);
 
         JPanel mapPlaceholder = new JPanel();
         mapPlaceholder.setBackground(new Color(22, 26, 24));
         mapPlaceholder.setPreferredSize(new Dimension(760, 420));
         mapPlaceholder.setBorder(BorderFactory.createLineBorder(COLOR_BORDER, 2));
-
         mapCard.add(mapPlaceholder, BorderLayout.CENTER);
 
         JPanel destinations = createCardPanel();
@@ -506,56 +635,32 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         JButton academyButton = createPrimaryButton("Go to Academy");
         academyButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         academyButton.setMaximumSize(new Dimension(200, 42));
-        academyButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         academyButton.addActionListener(event -> {
             if (requireHero()) {
                 boolean firstVisit = !hero.hasVisitedAcademy();
-                transitionManager.runTransition(frame,
-                        () -> {
-                            hero.setHasVisitedAcademy(true);
-                            subtitleLabel.setText("Explore Mystvale Academy.");
-                            showScreen(SCREEN_ACADEMY);
-                        },
-                        () -> {
-                            if (firstVisit) {
-                                playNarrationSequence("Academy Narration", buildAcademyNarration());
-                            }
-                        });
+                hero.setHasVisitedAcademy(true);
+                subtitleLabel.setText("Explore Mystvale Academy.");
+                showScreen(SCREEN_ACADEMY);
+                if (firstVisit) {
+                    playNarrationSequence("Academy Narration", Narration.buildAcademyNarration());
+                }
             }
         });
 
         JButton forestButtonLocal = createPrimaryButton("Forest of Reverie");
         forestButtonLocal.setMaximumSize(new Dimension(200, 42));
         forestButtonLocal.setAlignmentX(Component.CENTER_ALIGNMENT);
-        forestButtonLocal.addActionListener(event -> {
-            if (hero != null && hero.hasUnlockedArea1()) {
-                transitionManager.runTransition(frame, null, this::launchArea1);
-            } else {
-                launchArea1();
-            }
-        });
+        forestButtonLocal.addActionListener(event -> launchArea1());
 
         JButton edgeButton = createPrimaryButton("Reverie's Edge");
         edgeButton.setMaximumSize(new Dimension(200, 42));
         edgeButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        edgeButton.addActionListener(event -> {
-            if (hero != null && hero.hasUnlockedArea2()) {
-                transitionManager.runTransition(frame, null, this::launchArea2);
-            } else {
-                launchArea2();
-            }
-        });
+        edgeButton.addActionListener(event -> launchArea2());
 
         JButton forsakenButtonLocal = createPrimaryButton("Forsaken Lands");
         forsakenButtonLocal.setMaximumSize(new Dimension(200, 42));
         forsakenButtonLocal.setAlignmentX(Component.CENTER_ALIGNMENT);
-        forsakenButtonLocal.addActionListener(event -> {
-            if (hero != null && hero.hasUnlockedArea3()) {
-                transitionManager.runTransition(frame, null, this::launchArea3);
-            } else {
-                launchArea3();
-            }
-        });
+        forsakenButtonLocal.addActionListener(event -> launchArea3());
 
         destinations.add(academyButton);
         destinations.add(Box.createVerticalStrut(8));
@@ -571,7 +676,6 @@ public class GameWindow implements BattlePanel.BattleActionListener {
 
         panel.add(topRow, BorderLayout.NORTH);
         panel.add(midRow, BorderLayout.CENTER);
-
         return panel;
     }
 
@@ -681,7 +785,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
 
         JButton backButton = createSecondaryButton("Back to Character Select");
         backButton.addActionListener(event -> {
-            subtitleLabel.setText("Choose a hero to begin.");
+            subtitleLabel.setText("Every path is different. Pick the one that speaks to you.");
             showScreen(SCREEN_CHARACTER);
         });
 
@@ -705,53 +809,92 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     }
 
     private JPanel buildShopScreen() {
-        JPanel content = createCardPanel();
+        JPanel mainPanel = createShopBackgroundPanel();
+        mainPanel.setLayout(new BorderLayout());
 
-        content.add(createHeading("Shop"));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createBody("Buy potions here without leaving the academy screen."));
-        content.add(Box.createVerticalStrut(10));
+        JPanel header = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                Graphics2D g2 = (Graphics2D) graphicsContext.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(25, 23, 33, 230));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setColor(new Color(255, 255, 255, 14));
+                g2.fillRect(0, getHeight() - 1, getWidth(), 1);
+                g2.dispose();
+                super.paintComponent(graphicsContext);
+            }
+        };
+        header.setOpaque(false);
+        header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
+        header.setBorder(BorderFactory.createEmptyBorder(14, 20, 14, 20));
+
+        JLabel shopTitle = createHeading("Shop");
+        shopTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        shopTitle.setForeground(COLOR_SHOP_TEXT);
+        header.add(shopTitle);
+        header.add(Box.createVerticalStrut(6));
+
+        JLabel descriptionLabel = createBody("Select an item to view details or purchase a custom amount.");
+        descriptionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        descriptionLabel.setForeground(COLOR_SHOP_TEXT_MUTED);
+        header.add(descriptionLabel);
+        header.add(Box.createVerticalStrut(10));
 
         shopGoldLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        shopGoldLabel.setForeground(COLOR_TEXT_DARK);
-        content.add(shopGoldLabel);
-        content.add(Box.createVerticalStrut(6));
+        shopGoldLabel.setForeground(new Color(226, 201, 139));
+        header.add(shopGoldLabel);
+        header.add(Box.createVerticalStrut(6));
 
         shopStatusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        shopStatusLabel.setForeground(COLOR_TEXT_MUTED);
-        content.add(shopStatusLabel);
-        content.add(Box.createVerticalStrut(12));
+        shopStatusLabel.setForeground(COLOR_SHOP_TEXT_MUTED);
+        header.add(shopStatusLabel);
+        mainPanel.add(header, BorderLayout.NORTH);
 
-        content.add(createShopRow("Small Health Potion", 450, 0));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createShopRow("Medium Health Potion", 1350, 1));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createShopRow("Large Health Potion", 2750, 2));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createShopRow("Small Mana Potion", 450, 3));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createShopRow("Medium Mana Potion", 1350, 4));
-        content.add(Box.createVerticalStrut(6));
-        content.add(createShopRow("Large Mana Potion", 2750, 5));
-        content.add(Box.createVerticalStrut(14));
+        JPanel contentWrapper = new JPanel(new GridLayout(1, 2, 20, 0));
+        contentWrapper.setOpaque(false);
+        contentWrapper.setBorder(BorderFactory.createEmptyBorder(12, 20, 20, 20));
 
-        JButton bottomBackButton = createSecondaryButton("Back to Academy");
-        bottomBackButton.addActionListener(event -> {
-            subtitleLabel.setText("Explore Mystvale Academy.");
-            refreshHeroDashboard();
-            showScreen(SCREEN_ACADEMY);
-        });
+        JPanel leftPanel = new JPanel();
+        leftPanel.setOpaque(false);
+        leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
+        leftPanel.add(Box.createVerticalGlue());
+        leftPanel.add(createShopkeeperDisplay());
+        leftPanel.add(Box.createVerticalGlue());
 
-        content.add(bottomBackButton);
-        content.add(Box.createVerticalGlue());
+        JPanel rightPanel = new JPanel();
+        rightPanel.setOpaque(false);
+        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
 
-        JScrollPane scrollPane = new JScrollPane(content);
+        rightPanel.add(createShopRow("Small Health Potion", 450, 0, smallHealthPotionIcon));
+        rightPanel.add(Box.createVerticalStrut(6));
+        rightPanel.add(createShopRow("Medium Health Potion", 1350, 1, mediumHealthPotionIcon));
+        rightPanel.add(Box.createVerticalStrut(6));
+        rightPanel.add(createShopRow("Large Health Potion", 2750, 2, largeHealthPotionIcon));
+        rightPanel.add(Box.createVerticalStrut(6));
+        rightPanel.add(createShopRow("Small Mana Potion", 450, 3, smallManaPotionIcon));
+        rightPanel.add(Box.createVerticalStrut(6));
+        rightPanel.add(createShopRow("Medium Mana Potion", 1350, 4, mediumManaPotionIcon));
+        rightPanel.add(Box.createVerticalStrut(6));
+        rightPanel.add(createShopRow("Large Mana Potion", 2750, 5, largeManaPotionIcon));
+        rightPanel.add(Box.createVerticalGlue());
+
+        contentWrapper.add(leftPanel);
+        contentWrapper.add(rightPanel);
+        mainPanel.add(contentWrapper, BorderLayout.CENTER);
+
+        JScrollPane scrollPane = new JScrollPane(mainPanel);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.getVerticalScrollBar().setBackground(COLOR_SHOP_OUTSIDE);
+        scrollPane.getHorizontalScrollBar().setBackground(COLOR_SHOP_OUTSIDE);
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
 
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(COLOR_PANEL);
+        panel.setBackground(COLOR_SHOP_OUTSIDE);
+        scrollPane.setBackground(COLOR_SHOP_OUTSIDE);
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
     }
@@ -838,6 +981,10 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         return panel;
     }
 
+    // -------------------------------------------------------------------------
+    // Hero summary card (adventure overview panel)
+    // -------------------------------------------------------------------------
+
     private JPanel buildHeroSummaryCard() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -856,61 +1003,52 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         heroGoldValue.setForeground(COLOR_TEXT_MUTED);
 
         hpBar.setStringPainted(true);
-        hpBar.setForeground(COLOR_HERO_HP); // red health bar
+        hpBar.setForeground(COLOR_HERO_HP);
         hpBar.setBackground(Color.decode("#14215A"));
         hpBar.setFont(getBodyFont(14f));
+
         manaBar.setStringPainted(true);
-        manaBar.setForeground(COLOR_HERO_MANA); // blue mana bar
+        manaBar.setForeground(COLOR_HERO_MANA);
         manaBar.setBackground(Color.decode("#14215A"));
         manaBar.setFont(getBodyFont(14f));
 
+        JLabel healthText = new JLabel("Health");
+        healthText.setFont(getBodyFont(14f).deriveFont(Font.BOLD, 14f));
+        healthText.setForeground(COLOR_TEXT_DARK);
+
+        JLabel manaText = new JLabel("Mana");
+        manaText.setFont(getBodyFont(14f).deriveFont(Font.BOLD, 14f));
+        manaText.setForeground(COLOR_TEXT_DARK);
+
         panel.add(heroNameValue);
         panel.add(Box.createVerticalStrut(4));
-        heroClassValue.setFont(getBodyFont(14f));
-        heroLevelValue.setFont(getBodyFont(14f));
-        heroGoldValue.setFont(getBodyFont(14f));
         panel.add(heroClassValue);
         panel.add(heroLevelValue);
         panel.add(heroGoldValue);
         panel.add(Box.createVerticalStrut(10));
-        JLabel healthText = new JLabel("Health");
-        healthText.setFont(getBodyFont(14f).deriveFont(Font.BOLD, 14f));
-        healthText.setForeground(COLOR_TEXT_DARK);
         panel.add(healthText);
         panel.add(hpBar);
         panel.add(Box.createVerticalStrut(8));
-        JLabel manaText = new JLabel("Mana");
-        manaText.setFont(getBodyFont(14f).deriveFont(Font.BOLD, 14f));
-        manaText.setForeground(COLOR_TEXT_DARK);
         panel.add(manaText);
         panel.add(manaBar);
-
         return panel;
     }
 
+    // -------------------------------------------------------------------------
+    // Journey status helpers
+    // -------------------------------------------------------------------------
+
     private String getCurrentLocationForHero() {
-        if (hero == null) {
-            return "No hero selected";
-        }
-        if (hero.hasUnlockedArea3()) {
-            return "Forsaken Lands";
-        }
-        if (hero.hasUnlockedArea2()) {
-            return "Reverie's Edge";
-        }
-        if (hero.hasUnlockedArea1()) {
-            return "Forest of Reverie";
-        }
-        if (hero.hasVisitedAcademy()) {
-            return "Mystvale Academy";
-        }
+        if (hero == null) return "No hero selected";
+        if (hero.hasUnlockedArea3()) return "Forsaken Lands";
+        if (hero.hasUnlockedArea2()) return "Reverie's Edge";
+        if (hero.hasUnlockedArea1()) return "Forest of Reverie";
+        if (hero.hasVisitedAcademy()) return "Mystvale Academy";
         return "Academy";
     }
 
     private String getAdventureProgressText() {
-        if (hero == null) {
-            return "No data available. Choose a hero.";
-        }
+        if (hero == null) return "No data available. Choose a hero.";
 
         int trainingCompleted = 0;
         trainingCompleted += hero.hasFinishedEndurance() ? 1 : 0;
@@ -919,34 +1057,25 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         trainingCompleted += hero.hasFinishedManaRefinement() ? 1 : 0;
 
         StringBuilder sb = new StringBuilder("<html>");
-        sb.append("Training: ").append(trainingCompleted).append(" / 4 completed");
-        sb.append("<br>");
-
-        sb.append("Unlocked: ");
-        sb.append(hero.hasUnlockedArea3() ? "Forsaken Lands"
-                : hero.hasUnlockedArea2() ? "Reverie's Edge"
-                        : hero.hasUnlockedArea1() ? "Forest of Reverie" : "Mystvale Academy");
-        sb.append("<br>");
-
-        sb.append("Boss progress: ");
-        sb.append(hero.getHaveDefeatedArea1Boss() ? "Forest boss defeated" : "Forest boss alive");
-        sb.append(", ");
-        sb.append(hero.getHaveDefeatedArea2Boss() ? "Reverie's Edge boss defeated" : "Reverie's Edge boss alive");
-        sb.append("<br>");
-
-        sb.append("Gold: ").append(statFormat.format(hero.getGold()));
-        sb.append("<br>");
+        sb.append("Training: ").append(trainingCompleted).append(" / 4 completed<br>");
+        sb.append("Unlocked: ").append(
+                hero.hasUnlockedArea3() ? "Forsaken Lands" :
+                hero.hasUnlockedArea2() ? "Reverie's Edge" :
+                hero.hasUnlockedArea1() ? "Forest of Reverie" : "Mystvale Academy").append("<br>");
+        sb.append("Boss progress: ")
+                .append(hero.getHaveDefeatedArea1Boss() ? "Forest boss defeated" : "Forest boss alive")
+                .append(", ")
+                .append(hero.getHaveDefeatedArea2Boss() ? "Reverie's Edge boss defeated" : "Reverie's Edge boss alive")
+                .append("<br>");
+        sb.append("Gold: ").append(statFormat.format(hero.getGold())).append("<br>");
         sb.append("Level: ").append(hero.getLevel());
         sb.append("</html>");
 
         String content = sb.toString();
-        if (content.startsWith("<html>")) {
-            content = content.substring(6, content.length() - 7);
-        }
+        if (content.startsWith("<html>")) content = content.substring(6, content.length() - 7);
         return styleHtml(content);
     }
 
-    // Syncs journey status section sa main screen + the current hero's progress.
     private void refreshJourneyStatus() {
         if (hero == null) {
             journeyLocationLabel.setText(styleRaw("Current location: No hero selected"));
@@ -961,9 +1090,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     }
 
     private String getCompletionStatusForHero() {
-        if (hero == null) {
-            return "No hero chosen yet.";
-        }
+        if (hero == null) return "No hero chosen yet.";
 
         int trainingCompleted = 0;
         trainingCompleted += hero.hasFinishedEndurance() ? 1 : 0;
@@ -971,55 +1098,45 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         trainingCompleted += hero.hasFinishedDurability() ? 1 : 0;
         trainingCompleted += hero.hasFinishedManaRefinement() ? 1 : 0;
 
-        String unlockedAreaName = hero.hasUnlockedArea3() ? "Forsaken Lands"
-                : hero.hasUnlockedArea2() ? "Reverie's Edge"
-                        : hero.hasUnlockedArea1() ? "Forest of Reverie"
-                                : hero.hasVisitedAcademy() ? "Mystvale Academy" : "Academy";
+        String unlockedAreaName = hero.hasUnlockedArea3() ? "Forsaken Lands" :
+                hero.hasUnlockedArea2() ? "Reverie's Edge" :
+                hero.hasUnlockedArea1() ? "Forest of Reverie" :
+                hero.hasVisitedAcademy() ? "Mystvale Academy" : "Academy";
 
-        int bossesDefeated = (hero.getHaveDefeatedArea1Boss() ? 1 : 0) + (hero.getHaveDefeatedArea2Boss() ? 1 : 0)
-                + (hero.getHaveDefeatedArea3Boss() ? 1 : 0);
+        int bossesDefeated =
+                (hero.getHaveDefeatedArea1Boss() ? 1 : 0) +
+                (hero.getHaveDefeatedArea2Boss() ? 1 : 0) +
+                (hero.getHaveDefeatedArea3Boss() ? 1 : 0);
 
-        String content = "Completion: " + trainingCompleted + " / 4 training completed<br>Unlocked: " + unlockedAreaName
-                + "<br>Bosses defeated: " + bossesDefeated + " / 3";
-        return styleHtml(content);
+        return styleHtml("Completion: " + trainingCompleted + " / 4 training completed<br>Unlocked: "
+                + unlockedAreaName + "<br>Bosses defeated: " + bossesDefeated + " / 3");
     }
 
     private String getAdventureObjectivesText() {
-        if (hero == null) {
-            return "No objectives yet. Choose a hero to start.";
-        }
+        if (hero == null) return "No objectives yet. Choose a hero to start.";
 
-        StringBuilder sb = new StringBuilder("<html>");
-        sb.append("Training progress: ");
-        sb.append(hero.hasFinishedAllTraining() ? "All training tasks complete"
-                : "Continue training through Academy and areas");
-        sb.append("<br>");
+        StringBuilder sb = new StringBuilder();
+        sb.append("Training progress: ").append(
+                hero.hasFinishedAllTraining() ? "All training tasks complete" :
+                "Continue training through Academy and areas").append("<br>");
 
-        sb.append("Area unlocks: ");
-        sb.append(hero.hasUnlockedArea3() ? "Forsaken Lands"
-                : hero.hasUnlockedArea2() ? "Reverie's Edge"
-                        : hero.hasUnlockedArea1() ? "Forest of Reverie" : "Mystvale Academy");
-        sb.append("<br>");
+        sb.append("Area unlocks: ").append(
+                hero.hasUnlockedArea3() ? "Forsaken Lands" :
+                hero.hasUnlockedArea2() ? "Reverie's Edge" :
+                hero.hasUnlockedArea1() ? "Forest of Reverie" : "Mystvale Academy").append("<br>");
 
         sb.append("Next boss: ");
-        if (!hero.getHaveDefeatedArea1Boss()) {
-            sb.append("Forest boss (area 1)");
-        } else if (!hero.getHaveDefeatedArea2Boss()) {
-            sb.append("Reverie's Edge boss (area 2)");
-        } else if (!hero.getHaveDefeatedArea3Boss()) {
-            sb.append("Forsaken Lands boss (area 3)");
-        } else {
-            sb.append("All bosses defeated");
-        }
+        if (!hero.getHaveDefeatedArea1Boss()) sb.append("Forest boss (area 1)");
+        else if (!hero.getHaveDefeatedArea2Boss()) sb.append("Reverie's Edge boss (area 2)");
+        else if (!hero.getHaveDefeatedArea3Boss()) sb.append("Forsaken Lands boss (area 3)");
+        else sb.append("All bosses defeated");
 
-        sb.append("</html>");
-
-        String content = sb.toString();
-        if (content.startsWith("<html>")) {
-            content = content.substring(6, content.length() - 7);
-        }
-        return styleHtml(content);
+        return styleHtml(sb.toString());
     }
+
+    // -------------------------------------------------------------------------
+    // Row / line component helpers
+    // -------------------------------------------------------------------------
 
     private JPanel createInventoryRow(String name, JLabel countLabel, Runnable action) {
         JPanel row = new JPanel(new BorderLayout(12, 0));
@@ -1049,31 +1166,238 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     }
 
     private JPanel createShopRow(String name, int price, int itemIndex) {
-        JPanel row = new JPanel(new BorderLayout(10, 6));
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
-        row.setBackground(COLOR_PANEL);
-        row.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COLOR_BORDER, 1),
-                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+        return createShopRow(name, price, itemIndex, null);
+    }
 
-        JLabel nameLabel = new JLabel(name + "  |  " + statFormat.format(price) + " gold each");
-        nameLabel.setForeground(COLOR_TEXT_DARK);
-        row.add(nameLabel, BorderLayout.NORTH);
+    private JPanel createShopRow(String name, int price, int itemIndex, Icon icon) {
+        JPanel row = new JPanel(new BorderLayout(16, 0)) {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                Graphics2D g2 = (Graphics2D) graphicsContext.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        JPanel actions = new JPanel(new GridLayout(2, 2, 8, 6));
+                int arc = 8;
+                g2.setColor(new Color(28, 27, 36, 220));
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, arc, arc);
+
+                g2.setColor(new Color(255, 255, 255, 18));
+                g2.drawLine(10, 8, Math.max(10, getWidth() - 12), 8);
+                g2.dispose();
+                super.paintComponent(graphicsContext);
+            }
+        };
+        row.setOpaque(false);
+        row.setBorder(BorderFactory.createEmptyBorder(8, 24, 8, 48));
+        row.setPreferredSize(new Dimension(520, 112));
+        row.setMaximumSize(new Dimension(520, 112));
+        row.setAlignmentX(Component.RIGHT_ALIGNMENT);
+
+        JPanel itemPanel = new JPanel(new BorderLayout(12, 0));
+        itemPanel.setOpaque(false);
+        itemPanel.setPreferredSize(new Dimension(292, 96));
+
+        JPanel nameAndIconPanel = new JPanel();
+        nameAndIconPanel.setOpaque(false);
+        nameAndIconPanel.setLayout(new BoxLayout(nameAndIconPanel, BoxLayout.Y_AXIS));
+        nameAndIconPanel.setPreferredSize(new Dimension(190, 96));
+
+        JLabel nameLabel = new JLabel(name);
+        nameLabel.setForeground(new Color(246, 239, 221));
+        nameLabel.setFont(getBodyFont(14f).deriveFont(Font.BOLD, 14f));
+        nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        nameLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        nameAndIconPanel.add(nameLabel);
+        nameAndIconPanel.add(Box.createVerticalGlue());
+
+        JLabel iconLabel = new JLabel(icon == null ? null : scaleIcon(icon, 44, 44));
+        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        nameAndIconPanel.add(iconLabel);
+        nameAndIconPanel.add(Box.createVerticalGlue());
+        itemPanel.add(nameAndIconPanel, BorderLayout.CENTER);
+
+        JPanel pricePanel = new JPanel(new BorderLayout());
+        pricePanel.setOpaque(false);
+        pricePanel.setPreferredSize(new Dimension(52, 96));
+
+        JLabel priceLabel = new JLabel(statFormat.format(price));
+        priceLabel.setForeground(new Color(226, 201, 139));
+        priceLabel.setFont(getBodyFont(14f).deriveFont(Font.BOLD, 14f));
+        priceLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        pricePanel.add(priceLabel, BorderLayout.NORTH);
+        itemPanel.add(pricePanel, BorderLayout.EAST);
+        row.add(itemPanel, BorderLayout.CENTER);
+
+        JPanel actions = new JPanel();
+        actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
         actions.setOpaque(false);
+        actions.setPreferredSize(new Dimension(160, 96));
 
-        int[] quantities = { 1, 5, 10, 20 };
-        for (int quantity : quantities) {
-            JButton buyButton = createSecondaryButton("Buy x" + quantity);
-            buyButton.setPreferredSize(new Dimension(150, 34));
-            buyButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
-            buyButton.addActionListener(event -> buyShopItem(itemIndex, quantity));
-            actions.add(buyButton);
+        JButton buyOneButton = createShopBuyButton(1);
+        buyOneButton.addActionListener(event -> buyShopItem(itemIndex, 1));
+        JButton buyFiveButton = createShopBuyButton(5);
+        buyFiveButton.addActionListener(event -> buyShopItem(itemIndex, 5));
+
+        actions.add(buyOneButton);
+        actions.add(Box.createVerticalGlue());
+        actions.add(buyFiveButton);
+
+        row.add(actions, BorderLayout.EAST);
+        return row;
+    }
+
+    private JButton createShopBuyButton(int quantity) {
+        String label = "Buy x" + quantity;
+        BufferedImage buttonImage = graphics.prepareShopButtonImage(label + ".png");
+        JButton button = buttonImage == null ? createSecondaryButton(label) : new JButton(label) {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                Graphics2D g2 = (Graphics2D) graphicsContext.create();
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
+                ButtonModel model = getModel();
+                int yOffset = model.isArmed() && model.isPressed() ? 1 : 0;
+                int drawWidth = getWidth();
+                int drawHeight = Math.max(1, getHeight() - yOffset);
+
+                if (model.isRollover() && !model.isPressed()) {
+                    paintImageGlow(g2, buttonImage, 0, yOffset, drawWidth, drawHeight,
+                            new Color(120, 255, 225, 135));
+                    yOffset = Math.max(0, yOffset - 1);
+                }
+                g2.drawImage(buttonImage, 0, yOffset, drawWidth, drawHeight, null);
+
+                g2.dispose();
+            }
+        };
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setOpaque(false);
+        button.setRolloverEnabled(true);
+        button.setAlignmentX(Component.CENTER_ALIGNMENT);
+        button.setPreferredSize(new Dimension(160, 40));
+        button.setMaximumSize(new Dimension(160, 40));
+        button.setMinimumSize(new Dimension(160, 40));
+        button.setToolTipText(null);
+        return button;
+    }
+
+    private void paintImageGlow(Graphics2D g2, BufferedImage image, int x, int y, int width, int height, Color color) {
+        BufferedImage mask = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D maskGraphics = mask.createGraphics();
+        maskGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        maskGraphics.drawImage(image, 0, 0, width, height, null);
+        maskGraphics.setComposite(AlphaComposite.SrcAtop);
+        maskGraphics.setColor(color);
+        maskGraphics.fillRect(0, 0, width, height);
+        maskGraphics.dispose();
+
+        g2.drawImage(mask, x - 1, y - 1, width + 2, height + 2, null);
+        g2.drawImage(mask, x, y, width, height, null);
+    }
+
+    private JPanel createShopkeeperDisplay() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
+        panel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panel.setPreferredSize(new Dimension(420, 420));
+        panel.setMaximumSize(new Dimension(420, 420));
+
+        JLabel shopkeeperLabel = new JLabel(shopkeeperPrincipalIcon);
+        shopkeeperLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        shopkeeperLabel.setVerticalAlignment(SwingConstants.CENTER);
+        panel.add(shopkeeperLabel, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createShopBackgroundPanel() {
+        return new JPanel() {
+            @Override
+            protected void paintComponent(Graphics graphicsContext) {
+                super.paintComponent(graphicsContext);
+                if (shopBackgroundImage == null) {
+                    graphicsContext.setColor(COLOR_PANEL);
+                    graphicsContext.fillRect(0, 0, getWidth(), getHeight());
+                    return;
+                }
+
+                Graphics2D g2 = (Graphics2D) graphicsContext.create();
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
+                double scale = Math.max(
+                        getWidth() / (double) shopBackgroundImage.getWidth(),
+                        getHeight() / (double) shopBackgroundImage.getHeight());
+                int drawWidth = (int) Math.ceil(shopBackgroundImage.getWidth() * scale);
+                int drawHeight = (int) Math.ceil(shopBackgroundImage.getHeight() * scale);
+                int drawX = (getWidth() - drawWidth) / 2;
+                int drawY = (getHeight() - drawHeight) / 2;
+
+                g2.drawImage(shopBackgroundImage, drawX, drawY, drawWidth, drawHeight, null);
+                g2.setColor(new Color(10, 9, 24, 70));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+    }
+
+    private void paintShopSkyBackground(Graphics2D g2, int width, int height, int overlayAlpha) {
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
+        if (shopHeaderBackgroundImage == null) {
+            g2.setColor(COLOR_SHOP_OUTSIDE);
+            g2.fillRect(0, 0, width, height);
+            return;
         }
 
-        row.add(actions, BorderLayout.CENTER);
-        return row;
+        double scale = Math.max(
+                width / (double) shopHeaderBackgroundImage.getWidth(),
+                height / (double) shopHeaderBackgroundImage.getHeight());
+        int drawWidth = (int) Math.ceil(shopHeaderBackgroundImage.getWidth() * scale);
+        int drawHeight = (int) Math.ceil(shopHeaderBackgroundImage.getHeight() * scale);
+        int drawX = (width - drawWidth) / 2;
+        int drawY = (height - drawHeight) / 2;
+
+        g2.drawImage(shopHeaderBackgroundImage, drawX, drawY, drawWidth, drawHeight, null);
+        g2.setColor(new Color(10, 9, 24, overlayAlpha));
+        g2.fillRect(0, 0, width, height);
+    }
+
+    private Icon scaleIcon(Icon icon, int targetWidth, int targetHeight) {
+        if (!(icon instanceof ImageIcon imageIcon)) return icon;
+        Image scaled = imageIcon.getImage().getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
+        return new ImageIcon(scaled);
+    }
+
+    private Icon loadItemIcon(String fileName) {
+        BufferedImage image = graphics.loadItemImage(fileName);
+        return image == null ? null : new ImageIcon(image);
+    }
+
+    private Icon loadPixelUiIcon(String fileName, int targetWidth, int targetHeight) {
+        BufferedImage image = graphics.loadUIImage(fileName);
+        if (image == null) return null;
+
+        BufferedImage scaled = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = scaled.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        double scale = Math.min(
+                targetWidth / (double) Math.max(1, image.getWidth()),
+                targetHeight / (double) Math.max(1, image.getHeight()));
+        int drawWidth = Math.max(1, (int) Math.round(image.getWidth() * scale));
+        int drawHeight = Math.max(1, (int) Math.round(image.getHeight() * scale));
+        int drawX = (targetWidth - drawWidth) / 2;
+        int drawY = (targetHeight - drawHeight) / 2;
+
+        g2.drawImage(image, drawX, drawY, drawWidth, drawHeight, null);
+        g2.dispose();
+        return new ImageIcon(scaled);
     }
 
     private JPanel createStatLine(String label, JLabel value) {
@@ -1092,588 +1416,212 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         return row;
     }
 
-    private JPanel createCharacterButton(String title, String description, Runnable action) {
-        JPanel wrapper = new JPanel();
-        wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
+    // -------------------------------------------------------------------------
+    // Character card builder (updated layout)
+    // -------------------------------------------------------------------------
+
+    private JPanel createCharacterButton(String title, String role, Runnable action) {
+        final BufferedImage portraitImage = loadCharacterPortrait(title);
+        final boolean[] hovered = { false };
+
+        JPanel wrapper = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                super.paintComponent(graphics);
+
+                Graphics2D g2 = (Graphics2D) graphics.create();
+                if (portraitImage != null) {
+                    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
+                    double scale = Math.max(
+                            getWidth() / (double) portraitImage.getWidth(),
+                            getHeight() / (double) portraitImage.getHeight());
+                    int drawWidth = (int) Math.ceil(portraitImage.getWidth() * scale);
+                    int drawHeight = (int) Math.ceil(portraitImage.getHeight() * scale);
+                    int drawX = (getWidth() - drawWidth) / 2;
+                    int drawY = (getHeight() - drawHeight) / 2;
+
+                    g2.drawImage(portraitImage, drawX, drawY, drawWidth, drawHeight, null);
+                } else {
+                    g2.setColor(new Color(200, 193, 183));
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                }
+
+                g2.setPaint(new GradientPaint(
+                        0, 0, new Color(8, 8, 14, 18),
+                        0, getHeight(), new Color(8, 8, 14, 55)));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+
+                if (hovered[0]) {
+                    g2.setPaint(new GradientPaint(
+                            0, 0, new Color(20, 28, 48, 35),
+                            0, getHeight(), new Color(20, 28, 48, 95)));
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                    g2.setColor(new Color(170, 225, 255, 70));
+                    g2.fillRoundRect(6, 6, getWidth() - 12, getHeight() - 12, 18, 18);
+                }
+                g2.dispose();
+            }
+        };
         wrapper.setBackground(COLOR_CHARSEL_PANEL);
-        wrapper.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COLOR_BORDER, 1),
-                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
-        wrapper.setAlignmentX(JPanel.LEFT_ALIGNMENT);
+        wrapper.setBorder(BorderFactory.createLineBorder(COLOR_BORDER, 1));
+        wrapper.setPreferredSize(new Dimension(290, 480));
+        wrapper.setMinimumSize(new Dimension(290, 480));
+        wrapper.setMaximumSize(new Dimension(290, 480));
+        wrapper.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent event) {
+                wrapper.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(160, 224, 255), 2),
+                        BorderFactory.createEmptyBorder(0, 0, 0, 0)));
+                hovered[0] = true;
+                wrapper.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent event) {
+                wrapper.setBorder(BorderFactory.createLineBorder(COLOR_BORDER, 1));
+                hovered[0] = false;
+                wrapper.repaint();
+            }
+        });
 
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(getHeadingFont(22f));
-        titleLabel.setForeground(COLOR_CHARSEL_TEXT_DARK);
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
-        JLabel bodyLabel = createBody("<html>" + description + "</html>");
-        bodyLabel.setForeground(COLOR_CHARSEL_TEXT_MUTED);
+        JLabel roleLabel = new JLabel(role.toUpperCase());
+        roleLabel.setFont(getBodyFont(11f).deriveFont(Font.BOLD, 11f));
+        roleLabel.setForeground(new Color(228, 220, 203));
+        roleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        roleLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
-        // Add the character image here for each selection card.
-        // Example:
-        // JLabel imageLabel = new JLabel(new
-        // ImageIcon("assets/images/characters/swordsman.png"));
-        // imageLabel.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        // wrapper.add(imageLabel);
-        // wrapper.add(Box.createVerticalStrut(10));
-        // If you want different images per hero, update each createCharacterButton(...)
-        // call in buildCharacterScreen() and pass the correct image path into this
-        // method.
-
-        JButton chooseButton = createCharacterSelectButton("Play " + title);
+        JButton chooseButton = createCharacterSelectButton("Play as " + title);
         chooseButton.addActionListener(event -> action.run());
+        chooseButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        chooseButton.setMaximumSize(new Dimension(180, 44));
 
-        wrapper.add(titleLabel);
-        wrapper.add(Box.createVerticalStrut(6));
-        if (description != null && !description.isBlank()) {
-            wrapper.add(bodyLabel);
-            wrapper.add(Box.createVerticalStrut(10));
-        } else {
-            wrapper.add(Box.createVerticalStrut(2));
-        }
-        wrapper.add(chooseButton);
+        JPanel topOverlay = new JPanel();
+        topOverlay.setOpaque(false);
+        topOverlay.setLayout(new BoxLayout(topOverlay, BoxLayout.Y_AXIS));
+        topOverlay.setBorder(BorderFactory.createEmptyBorder(30, 14, 0, 14));
+        topOverlay.add(titleLabel);
+        topOverlay.add(Box.createVerticalStrut(2));
+        topOverlay.add(roleLabel);
+
+        JPanel bottomOverlay = new JPanel();
+        bottomOverlay.setOpaque(false);
+        bottomOverlay.setLayout(new BoxLayout(bottomOverlay, BoxLayout.Y_AXIS));
+        bottomOverlay.setBorder(BorderFactory.createEmptyBorder(0, 18, 25, 18));
+
+        /*if (portraitImage == null) {
+            JLabel placeholder = new JLabel("<html><div style='text-align:center;'>Add " + title + " portrait</div></html>");
+            placeholder.setFont(getBodyFont(13f).deriveFont(Font.BOLD, 13f));
+            placeholder.setForeground(new Color(238, 231, 221));
+            placeholder.setAlignmentX(Component.CENTER_ALIGNMENT);
+            placeholder.setHorizontalAlignment(SwingConstants.CENTER);
+            bottomOverlay.add(placeholder);
+            bottomOverlay.add(Box.createVerticalStrut(10));
+        }*/
+
+        bottomOverlay.add(chooseButton);
+
+        wrapper.add(topOverlay, BorderLayout.NORTH);
+        wrapper.add(bottomOverlay, BorderLayout.SOUTH);
         return wrapper;
     }
 
-    private JButton createCharacterSelectButton(String text) {
-        JButton button = new JButton(text) {
-            @Override
-            protected void paintComponent(Graphics graphics) {
-                Graphics2D graphics2D = (Graphics2D) graphics.create();
-                graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                ButtonModel model = getModel();
-                Color fill = new Color(118, 81, 53);
-                if (model.isPressed()) {
-                    fill = new Color(96, 65, 42);
-                } else if (model.isRollover()) {
-                    fill = new Color(132, 92, 62);
-                }
-                graphics2D.setColor(fill);
-                graphics2D.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 14, 14);
-                graphics2D.dispose();
-                super.paintComponent(graphics);
-            }
-
-            @Override
-            protected void paintBorder(Graphics graphics) {
-                Graphics2D graphics2D = (Graphics2D) graphics.create();
-                graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                graphics2D.setColor(new Color(90, 62, 41));
-                graphics2D.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 14, 14);
-                graphics2D.dispose();
-            }
-        };
-        button.setFont(getBodyFont(14f).deriveFont(Font.BOLD, 14f));
-        button.setForeground(Color.WHITE);
-        button.setBackground(new Color(118, 81, 53));
-        button.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
-        button.setRolloverEnabled(true);
-        button.setContentAreaFilled(false);
-        button.setOpaque(false);
-        button.setFocusPainted(false);
-        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        button.setAlignmentX(Component.LEFT_ALIGNMENT);
-        return button;
-    }
+    // -------------------------------------------------------------------------
+    // Card panel + font helpers
+    // -------------------------------------------------------------------------
 
     private JPanel createCardPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COLOR_BORDER, 1),
-                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
-        panel.setBackground(COLOR_PANEL);
-        panel.setOpaque(true);
-        return panel;
+        return graphics.createCardPanel(COLOR_BORDER, COLOR_PANEL);
     }
 
     private Font getHeadingFont(float size) {
-        if (headingFont != null) {
-            return headingFont.deriveFont(Font.BOLD, size);
-        }
-        return new Font("Serif", Font.BOLD, Math.round(size));
+        return graphics.getHeadingFont(size);
     }
 
     private Font getBodyFont(float size) {
-        if (bodyFont != null) {
-            return bodyFont.deriveFont(Font.PLAIN, size);
-        }
-        return new Font("SansSerif", Font.PLAIN, Math.round(size));
+        return graphics.getBodyFont(size);
     }
 
     private String styleHtml(String htmlBody) {
-        String family = bodyFont != null ? bodyFont.getFamily() : "SansSerif";
-        int size = Math.round(bodyFontSize);
-        String cleaned = htmlBody;
-        if (cleaned.startsWith("<html>")) {
-            cleaned = cleaned.substring(6);
-        }
-        if (cleaned.endsWith("</html>")) {
-            cleaned = cleaned.substring(0, cleaned.length() - 7);
-        }
-        return "<html><div style='font-family: " + family + "; font-size: " + size + "pt;'>" + cleaned
-                + "</div></html>";
-    }
-
-    private JLabel createHeading(String text) {
-        JLabel label = new JLabel(text);
-        label.putClientProperty("fontRole", "heading");
-        label.setFont(getHeadingFont(headingFontSize));
-        label.setForeground(COLOR_TEXT_DARK);
-        return label;
+        return graphics.styleHtml(htmlBody);
     }
 
     private String styleRaw(String text) {
-        String family = bodyFont != null ? bodyFont.getFamily() : "SansSerif";
-        int size = Math.round(bodyFontSize);
-        return "<html><div style='font-family: " + family + "; font-size: " + size + "pt;'>" + text + "</div></html>";
+        return graphics.styleRaw(text);
+    }
+
+    private JLabel createHeading(String text) {
+        return graphics.createHeading(text, COLOR_TEXT_DARK);
     }
 
     private JLabel createBody(String text) {
-        JLabel label = new JLabel(styleRaw(text));
-        label.putClientProperty("fontRole", "body");
-        label.setFont(getBodyFont(bodyFontSize));
-        label.setForeground(COLOR_TEXT_MUTED);
-        return label;
+        return graphics.createBody(text, COLOR_TEXT_MUTED);
     }
 
+    // -------------------------------------------------------------------------
+    // Button factories
+    // -------------------------------------------------------------------------
+
     private JButton createPrimaryButton(String text) {
-        return createStyledButton(
-                text,
-                primaryButtonSkin,
-                new Color(118, 81, 53),
-                Color.WHITE,
-                getBodyFont(14f).deriveFont(Font.BOLD, 14f),
-                42);
+        return graphics.createPrimaryButton(text);
     }
 
     private JButton createSecondaryButton(String text) {
-        return createStyledButton(
-                text,
-                secondaryButtonSkin,
-                new Color(118, 81, 53),
-                Color.WHITE,
-                getBodyFont(13f).deriveFont(Font.BOLD, 13f),
-                40);
+        return graphics.createSecondaryButton(text);
     }
 
     private JButton createBattleButton(String text) {
-        return createStyledButton(
-                text,
-                null,
-                COLOR_BATTLE_SURFACE,
-                Color.WHITE,
-                getBodyFont(15f).deriveFont(Font.BOLD, 15f),
-                58);
+        return graphics.createBattleButton(text, COLOR_BATTLE_SURFACE);
     }
 
-    private JButton createStyledButton(String text, ButtonSkin skin, Color fallbackColor, Color textColor, Font font,
-            int height) {
-        PixelButton button = new PixelButton(text, skin, fallbackColor);
-        button.setForeground(textColor);
-        button.setFont(font);
-        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
-        button.setMinimumSize(new Dimension(160, height));
-        button.setPreferredSize(new Dimension(220, height));
-        button.setAlignmentX(Component.LEFT_ALIGNMENT);
-        return button;
+    private JButton createCharacterSelectButton(String text) {
+        return graphics.createCharacterSelectButton(text);
     }
 
-    private ButtonSkin loadButtonSkin(String baseName) {
-        // Button skins are optional. If only the normal PNG exists, Swing still uses it
-        // and falls back to the default state colors for anything missing.
-        BufferedImage normal = loadImageAsset(UI_IMAGE_DIRECTORY + baseName + ".png");
-        BufferedImage hover = loadImageAsset(UI_IMAGE_DIRECTORY + baseName + "-hover.png");
-        BufferedImage pressed = loadImageAsset(UI_IMAGE_DIRECTORY + baseName + "-pressed.png");
-        BufferedImage disabled = loadImageAsset(UI_IMAGE_DIRECTORY + baseName + "-disabled.png");
-        return new ButtonSkin(normal, hover, pressed, disabled);
+    // -------------------------------------------------------------------------
+    // Landing screen
+    // -------------------------------------------------------------------------
+
+    private JPanel buildLandingScreen() {
+        return graphics.buildLandingScreen(frame, this::openCharacterSelectFromLanding,
+                this::loadSavedGame,
+                () -> { if (frame != null) frame.dispose(); });
     }
 
-    private BufferedImage loadImageAsset(String path) {
-        try {
-            return ImageIO.read(new File(path));
-        } catch (Exception ignored) {
-            return null;
-        }
+    private Icon createScaledPortraitIcon(BufferedImage portrait, int targetWidth, int targetHeight) {
+        return graphics.createScaledPortraitIcon(portrait, targetWidth, targetHeight);
     }
 
-    private BufferedImage loadLandingBackground() {
-        // Prefer classpath resource so the image works no matter the run directory.
-        try (InputStream classpathStream = getClass()
-                .getResourceAsStream("/com/ror/models/assets/images/landing-background-source.jpg")) {
-            if (classpathStream != null) {
-                BufferedImage image = ImageIO.read(classpathStream);
-                if (image != null) {
-                    return image;
-                }
-            }
-        } catch (Exception ignored) {
-        }
-        try (InputStream classpathStream = getClass().getResourceAsStream("/com/ror/models/assets/images/title.png")) {
-            if (classpathStream != null) {
-                BufferedImage image = ImageIO.read(classpathStream);
-                if (image != null) {
-                    return image;
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        // Fallbacks for file-based runs in IDEs with different working directories.
-        String[] candidates = {
-                "src/com/ror/models/assets/images/landing-background-source.jpg",
-                "assets/images/landing-background-source.jpg",
-                "src/com/ror/models/assets/images/title.png",
-                "assets/images/title.png"
-        };
-
-        for (String candidate : candidates) {
-            BufferedImage image = loadImageAsset(candidate);
-            if (image != null) {
-                return image;
-            }
-        }
-
-        return null;
-    }
-
-    // Font loader for custom fonts
-    private void loadFonts() {
-        try (InputStream cinzelStream = getClass()
-                .getResourceAsStream("/com/ror/models/assets/fonts/Cinzel-VariableFont_wght.ttf");
-                InputStream garamondStream = getClass()
-                        .getResourceAsStream("/com/ror/models/assets/fonts/EBGaramond-VariableFont_wght.ttf")) {
-
-            // Loading and registration for heading font.
-            if (cinzelStream != null) {
-                Font loadedHeading = Font.createFont(Font.TRUETYPE_FONT, cinzelStream).deriveFont(Font.BOLD,
-                        headingFontSize);
-                headingFont = loadedHeading;
-                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(loadedHeading);
-            }
-
-            // Loading and registration for body font.
-            if (garamondStream != null) {
-                Font loadedBody = Font.createFont(Font.TRUETYPE_FONT, garamondStream).deriveFont(Font.PLAIN,
-                        bodyFontSize);
-                bodyFont = loadedBody;
-                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(loadedBody);
-            }
-
-            // Apply as global font(didn't work for all components rip).
-            applyGlobalUIFont();
-
-        } catch (Exception e) {
-            // Fallback if wala ang font.
-            headingFont = new Font("Serif", Font.BOLD, Math.round(headingFontSize));
-            bodyFont = new Font("SansSerif", Font.PLAIN, Math.round(bodyFontSize));
-            applyGlobalUIFont();
-        }
+    private BufferedImage loadCharacterPortrait(String title) {
+        return graphics.loadCharacterPortrait(title);
     }
 
     public void setGameFonts(Font heading, Font body) {
-        if (heading != null) {
-            headingFont = heading;
-            headingFontSize = heading.getSize2D();
-        }
-        if (body != null) {
-            bodyFont = body;
-            bodyFontSize = body.getSize2D();
-        }
-        applyFontsToAllComponents(rootPanel);
+        graphics.setGameFonts(heading, body, rootPanel);
     }
 
     public void setGameFontSizes(float headingSize, float bodySize) {
-        headingFontSize = headingSize;
-        bodyFontSize = bodySize;
-        if (headingFont != null) {
-            headingFont = headingFont.deriveFont(Font.BOLD, headingSize);
-        }
-        if (bodyFont != null) {
-            bodyFont = bodyFont.deriveFont(Font.PLAIN, bodySize);
-        }
-        applyGlobalUIFont();
-        applyFontsToAllComponents(rootPanel);
+        graphics.setGameFontSizes(headingSize, bodySize, rootPanel);
     }
 
-    // Brute force method for font applications (ngano di consistent ang UIManager
-    // font application sa components???)
-    private void applyGlobalUIFont() {
-        FontUIResource uiFont = new FontUIResource(bodyFont.deriveFont(bodyFontSize));
-        UIManager.put("Label.font", uiFont);
-        UIManager.put("Button.font", uiFont);
-        UIManager.put("TextField.font", uiFont);
-        UIManager.put("TextArea.font", uiFont);
-        UIManager.put("TextPane.font", uiFont);
-        UIManager.put("ComboBox.font", uiFont);
-        UIManager.put("List.font", uiFont);
-        UIManager.put("Table.font", uiFont);
-        UIManager.put("ProgressBar.selectionForeground", Color.WHITE);
-        UIManager.put("ProgressBar.selectionBackground", Color.WHITE);
-    }
-
-    private void applyFontsToAllComponents(Container container) {
-        for (Component comp : container.getComponents()) {
-            if (comp instanceof JLabel label) {
-                Object role = label.getClientProperty("fontRole");
-                if ("heading".equals(role)) {
-                    label.setFont(getHeadingFont(headingFontSize));
-                } else {
-                    label.setFont(getBodyFont(bodyFontSize));
-                }
-
-                String text = label.getText();
-                if (text != null && text.startsWith("<html>")) {
-                    String inner = text.substring(6, text.length() - 7);
-                    label.setText(styleHtml(inner));
-                }
-            } else if (comp instanceof JButton button) {
-                button.setFont(getBodyFont(button.getFont().getSize2D()));
-            } else if (comp instanceof JTextArea textArea) {
-                textArea.setFont(getBodyFont(bodyFontSize));
-            } else if (comp instanceof JTextField textField) {
-                textField.setFont(getBodyFont(bodyFontSize));
-            }
-            if (comp instanceof Container child) {
-                applyFontsToAllComponents(child);
-            }
-        }
-    }
+    // -------------------------------------------------------------------------
+    // Enemy sprite
+    // -------------------------------------------------------------------------
 
     private void updateEnemySprite(Entity enemy) {
-        BufferedImage sprite = loadEnemySprite(enemy);
-        if (sprite == null) {
-            BufferedImage placeholder = loadImageAsset(ENEMY_IMAGE_DIRECTORY + "placeholder.png");
-            if (placeholder != null) {
-                battlePanel.getBattleEnemySpriteLabel().setText("");
-                battlePanel.getBattleEnemySpriteLabel().setIcon(createScaledSpriteIcon(placeholder, 96, 96));
-            } else {
-                battlePanel.getBattleEnemySpriteLabel().setIcon(null);
-                battlePanel.getBattleEnemySpriteLabel().setText("");
-            }
-            return;
-        }
-
-        battlePanel.getBattleEnemySpriteLabel().setText("");
-        battlePanel.getBattleEnemySpriteLabel().setIcon(createScaledSpriteIcon(sprite, 96, 96));
+        graphics.updateEnemySprite(enemy, battlePanel);
     }
 
-    private BufferedImage loadEnemySprite(Entity enemy) {
-        if (enemy == null) {
-            return null;
-        }
-
-        if (enemy instanceof Goblin) {
-            return loadImageAsset(ENEMY_IMAGE_DIRECTORY + "goblin.png");
-        }
-
-        return null;
-    }
-
-    private javax.swing.Icon createScaledSpriteIcon(BufferedImage sprite, int targetWidth, int targetHeight) {
-        BufferedImage scaled = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics2D = scaled.createGraphics();
-        graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-
-        // STARE O_O balik nasad ta ani dim math
-
-        int drawWidth = sprite.getWidth();
-        int drawHeight = sprite.getHeight();
-        double scale = Math.min((double) targetWidth / Math.max(1, drawWidth),
-                (double) targetHeight / Math.max(1, drawHeight));
-        int scaledWidth = Math.max(1, (int) Math.round(drawWidth * scale));
-        int scaledHeight = Math.max(1, (int) Math.round(drawHeight * scale));
-        int x = (targetWidth - scaledWidth) / 2;
-        int y = (targetHeight - scaledHeight) / 2;
-
-        graphics2D.drawImage(sprite, x, y, scaledWidth, scaledHeight, null);
-        graphics2D.dispose();
-        return new javax.swing.ImageIcon(scaled);
-    }
-
-    // for title screen only
-    private static final class ButtonSkin {
-        private final BufferedImage normal;
-        private final BufferedImage hover;
-        private final BufferedImage pressed;
-        private final BufferedImage disabled;
-
-        private ButtonSkin(BufferedImage normal, BufferedImage hover, BufferedImage pressed, BufferedImage disabled) {
-            this.normal = normal;
-            this.hover = hover;
-            this.pressed = pressed;
-            this.disabled = disabled;
-        }
-
-        private BufferedImage resolve(ButtonModel model, boolean rollover) {
-            if (!model.isEnabled()) {
-                return disabled != null ? disabled : normal;
-            }
-            if (model.isPressed()) {
-                if (pressed != null) {
-                    return pressed;
-                }
-                if (hover != null) {
-                    return hover;
-                }
-            }
-            if (rollover && hover != null) {
-                return hover;
-            }
-            return normal;
-        }
-
-        private boolean hasAnyImage() {
-            return normal != null || hover != null || pressed != null || disabled != null;
-        }
-    }
-
-    private static final class PixelButton extends JButton {
-        private final ButtonSkin skin;
-        private final Color fallbackColor;
-        private boolean rollover;
-
-        private PixelButton(String text, ButtonSkin skin, Color fallbackColor) {
-            super(text);
-            this.skin = skin;
-            this.fallbackColor = fallbackColor;
-
-            setFocusPainted(false);
-            setContentAreaFilled(false);
-            setBorderPainted(false);
-            setOpaque(false);
-            setBorder(BorderFactory.createEmptyBorder(10, 18, 10, 18));
-            setHorizontalTextPosition(JButton.CENTER);
-            setVerticalTextPosition(JButton.CENTER);
-            setRolloverEnabled(true);
-
-            addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseEntered(MouseEvent event) {
-                    rollover = true;
-                    repaint();
-                }
-
-                @Override
-                public void mouseExited(MouseEvent event) {
-                    rollover = false;
-                    repaint();
-                }
-            });
-        }
-
-        @Override
-        protected void paintComponent(Graphics graphics) {
-            Graphics2D graphics2D = (Graphics2D) graphics.create();
-
-            if (skin != null && skin.hasAnyImage()) {
-                BufferedImage stateImage = skin.resolve(getModel(), rollover);
-                if (stateImage != null) {
-                    // Pixel art should stay crisp, so we scale with nearest-neighbor
-                    // instead of the default smoothing used for photos.
-                    graphics2D.setRenderingHint(
-                            RenderingHints.KEY_INTERPOLATION,
-                            RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-                    graphics2D.drawImage(stateImage, 0, 0, getWidth(), getHeight(), null);
-                }
-            } else {
-                graphics2D.setColor(resolveFallbackColor());
-                graphics2D.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
-            }
-
-            graphics2D.dispose();
-            super.paintComponent(graphics);
-        }
-
-        private Color resolveFallbackColor() {
-            if (!isEnabled()) {
-                return fallbackColor.darker();
-            }
-            if (getModel().isPressed()) {
-                return fallbackColor.darker();
-            }
-            if (rollover) {
-                return fallbackColor.brighter();
-            }
-            return fallbackColor;
-        }
-    }
-
-    private JPanel buildLandingScreen() {
-        JPanel panel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics graphics) {
-                super.paintComponent(graphics);
-
-                Graphics2D graphics2D = (Graphics2D) graphics.create();
-                // Temporarily use a plain backdrop with no image.
-                graphics2D.setColor(new Color(18, 12, 10));
-                graphics2D.fillRect(0, 0, getWidth(), getHeight());
-                graphics2D.dispose();
-            }
-        };
-
-        panel.setLayout(new GridBagLayout());
-
-        JPanel content = new JPanel();
-        content.setOpaque(false);
-        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.setMaximumSize(new Dimension(760, Integer.MAX_VALUE));
-
-        JLabel eyebrow = new JLabel("REALMS OF RIFTBORNE");
-        eyebrow.setFont(getBodyFont(18f).deriveFont(Font.BOLD, 18f));
-        eyebrow.setForeground(new Color(234, 190, 137));
-        eyebrow.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-
-        JLabel title = new JLabel("Mystvale Academy");
-        title.setFont(getHeadingFont(56f));
-        title.setForeground(new Color(255, 238, 216));
-        title.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-
-        JLabel body = new JLabel(
-                "<html><div style='text-align:center;'>Defeat Kim Morvain and escape Mystvale Academy.</div></html>");
-        body.setFont(getBodyFont(18f));
-        body.setForeground(new Color(232, 219, 208));
-        body.setHorizontalAlignment(SwingConstants.CENTER);
-        body.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-        body.setMaximumSize(new Dimension(760, 50));
-
-        JButton startButton = createPrimaryButton("Play");
-        startButton.setPreferredSize(new Dimension(220, 46));
-        startButton.setMaximumSize(new Dimension(220, 46));
-        startButton.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-        startButton.addActionListener(event -> openCharacterSelectFromLanding());
-
-        JButton exitButton = createSecondaryButton("Exit");
-        exitButton.setPreferredSize(new Dimension(220, 46));
-        exitButton.setMaximumSize(new Dimension(220, 46));
-        exitButton.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-        exitButton.addActionListener(event -> frame.dispose());
-
-        content.add(Box.createVerticalGlue());
-        content.add(eyebrow);
-        content.add(Box.createVerticalStrut(10));
-        content.add(title);
-        content.add(Box.createVerticalStrut(14));
-        content.add(body);
-        content.add(Box.createVerticalStrut(26));
-        JPanel landingButtons = new JPanel(new GridLayout(1, 2, 26, 0));
-        landingButtons.setOpaque(false);
-        landingButtons.setMaximumSize(new Dimension(470, 46));
-        landingButtons.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-        landingButtons.add(startButton);
-        landingButtons.add(exitButton);
-
-        content.add(landingButtons);
-        content.add(Box.createVerticalGlue());
-
-        GridBagConstraints constraints = new GridBagConstraints();
-        constraints.gridx = 0;
-        constraints.gridy = 0;
-        constraints.anchor = GridBagConstraints.CENTER;
-        panel.add(content, constraints);
-        return panel;
-    }
+    // -------------------------------------------------------------------------
+    // Console stream wiring
+    // -------------------------------------------------------------------------
 
     private void wireConsoleStreams() {
         System.setIn(gameInputStream);
@@ -1681,12 +1629,15 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         PrintStream guiOut = new PrintStream(
                 new BufferedOutputStream(
                         new TextAreaOutputStream(outputArea, this::filterLegacyOutput, this::observeLegacyOutput), 1),
-                true,
-                StandardCharsets.UTF_8);
+                true, StandardCharsets.UTF_8);
 
-        System.setOut(guiOut);
-        System.setErr(guiOut);
+        //System.setOut(guiOut);
+        //System.setErr(guiOut);
     }
+
+    // -------------------------------------------------------------------------
+    // Hero selection + dashboard refresh
+    // -------------------------------------------------------------------------
 
     private void selectHero(Hero selectedHero) {
         hero = selectedHero;
@@ -1700,18 +1651,90 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         beginStoryForHero(true);
     }
 
+    private void saveCurrentGame() {
+        if (!requireHero()) return;
+
+        try {
+            int slot = chooseSaveSlot();
+            if (slot == -1) return;
+
+            Load.SlotInfo existingSlot = Load.getSlotInfo(slot);
+            if (existingSlot.isOccupied()) {
+                int overwrite = showConfirmSync("Overwrite Save",
+                        existingSlot.getSummary() + "\n\nOverwrite this save?");
+                if (overwrite != JOptionPane.YES_OPTION) return;
+            }
+
+            Load.saveGame(hero, slot);
+            Load.SlotInfo savedSlot = Load.getSlotInfo(slot);
+            showInfoSync("Game Saved", savedSlot.getSummary());
+        } catch (Exception exception) {
+            showWarningSync("Save Failed", exception.getMessage());
+        }
+    }
+
+    private void loadSavedGame() {
+        try {
+            int slot = chooseLoadSlot();
+            if (slot == -1) return;
+
+            Hero loadedHero = Load.loadGame(slot);
+            if (loadedHero == null) {
+                showInfoSync("Load Game", "That save slot is empty.");
+                return;
+            }
+
+            hero = loadedHero;
+            inventoryNarrationShown = hero.hasOpenedInventory();
+            currentStorySequence = new String[0];
+            currentStoryIndex = 0;
+            refreshHeroDashboard();
+            refreshInventoryPanel();
+            refreshProfilePanel();
+            subtitleLabel.setText("Adventure overview.");
+            rootLayout.show(rootPanel, ROOT_GAME);
+            showScreen(SCREEN_MAIN);
+            appendLog("\nLoaded save: " + hero.getName() + " the " + hero.getCharClass() + ".\n");
+            showInfoSync("Game Loaded", "Loaded " + hero.getName() + ".");
+        } catch (Exception exception) {
+            showWarningSync("Load Failed", exception.getMessage());
+        }
+    }
+
+    private int chooseSaveSlot() {
+        int choice = showSlotChooserSync("Save Game", "Choose a save slot.", true);
+        return choice >= 0 && choice < Load.SLOT_COUNT ? choice + 1 : -1;
+    }
+
+    private int chooseLoadSlot() {
+        if (!Load.hasSave()) {
+            showInfoSync("Load Game", "No saved game found yet.");
+            return -1;
+        }
+
+        int choice = showSlotChooserSync("Load Game", "Choose a save to load.", false);
+        if (choice < 0 || choice >= Load.SLOT_COUNT) return -1;
+
+        Load.SlotInfo selectedSlot = Load.getSlotInfo(choice + 1);
+        if (!selectedSlot.isOccupied()) {
+            showInfoSync("Load Game", "That save slot is empty.");
+            return -1;
+        }
+        if (!selectedSlot.isReadable()) {
+            showWarningSync("Load Game", "That save slot could not be read.");
+            return -1;
+        }
+        return choice + 1;
+    }
+
     private void refreshHeroDashboard() {
         if (hero == null) {
             heroNameValue.setText("-");
             heroClassValue.setText("-");
             heroLevelValue.setText("-");
             heroGoldValue.setText("-");
-            hpBar.setMaximum(1);
-            hpBar.setValue(0);
-            hpBar.setString("0 / 0");
-            manaBar.setMaximum(1);
-            manaBar.setValue(0);
-            manaBar.setString("0 / 0");
+            hpBar.setMaximum(1); hpBar.setValue(0); hpBar.setString("0 / 0");
+            manaBar.setMaximum(1); manaBar.setValue(0); manaBar.setString("0 / 0");
             refreshJourneyStatus();
             return;
         }
@@ -1733,11 +1756,66 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         refreshJourneyStatus();
     }
 
-    private void beginStoryForHero(boolean firstTimeSelection) {
+    private void refreshAreaButtons() {
+        if (forestButton == null || swampButton == null || forsakenButton == null) return;
+
+        boolean hasHero = hero != null;
+        forestButton.setEnabled(hasHero && hero.hasUnlockedArea1());
+        swampButton.setEnabled(hasHero && hero.hasUnlockedArea2());
+        forsakenButton.setEnabled(hasHero && hero.hasUnlockedArea3());
+
+        forestButton.setToolTipText(hasHero && !hero.hasUnlockedArea1() ? "Unlock through the Principal Office flow." : null);
+        swampButton.setToolTipText(hasHero && !hero.hasUnlockedArea2() ? "Unlock through the Principal Office flow." : null);
+        forsakenButton.setToolTipText(hasHero && !hero.hasUnlockedArea3() ? "Unlock through the Principal Office flow." : null);
+    }
+
+    private void refreshInventoryPanel() {
         if (hero == null) {
+            inventorySummary.setText("No hero selected.");
+            smallHealthCount.setText("0");
+            mediumHealthCount.setText("0");
+            largeHealthCount.setText("0");
+            smallManaCount.setText("0");
+            mediumManaCount.setText("0");
+            largeManaCount.setText("0");
+            shopGoldLabel.setText("Gold: -");
+            shopStatusLabel.setText("Choose a hero first.");
             return;
         }
 
+        Inventory inventory = hero.getInventory();
+        inventorySummary.setText(
+                "HP " + statFormat.format(hero.getHp()) + "/" + statFormat.format(hero.getHpCap()) +
+                "  |  Mana " + statFormat.format(hero.getMana()) + "/" + statFormat.format(hero.getManaCap()));
+        smallHealthCount.setText(String.valueOf(inventory.getSmallHealthPotion()));
+        mediumHealthCount.setText(String.valueOf(inventory.getMediumHealthPotion()));
+        largeHealthCount.setText(String.valueOf(inventory.getLargeHealthPotion()));
+        smallManaCount.setText(String.valueOf(inventory.getSmallManaPotion()));
+        mediumManaCount.setText(String.valueOf(inventory.getMediumManaPotion()));
+        largeManaCount.setText(String.valueOf(inventory.getLargeManaPotion()));
+        shopGoldLabel.setText("Gold: " + statFormat.format(hero.getGold()));
+    }
+
+    private void refreshProfilePanel() {
+        if (hero == null) return;
+        profileName.setText(hero.getName());
+        profileClass.setText(hero.getCharClass());
+        profileWeapon.setText(hero.getWeapon());
+        profileLevel.setText(String.valueOf(hero.getLevel()));
+        profileAttack.setText(statFormat.format(hero.getAttack()));
+        profileDefense.setText(statFormat.format(hero.getDefense()));
+        profileSpeed.setText(statFormat.format(hero.getSpeed()));
+        profileSkill1.setText(hero.getSkill1());
+        profileSkill2.setText(hero.getSkill2());
+        profileUltimate.setText(hero.getUltimate());
+    }
+
+    // -------------------------------------------------------------------------
+    // Story sequence
+    // -------------------------------------------------------------------------
+
+    private void beginStoryForHero(boolean firstTimeSelection) {
+        if (hero == null) return;
         currentStorySequence = buildIntroStoryForHero(hero);
         currentStoryIndex = 0;
         storyTitleLabel.setText(firstTimeSelection ? "Opening Story" : "Storyline Recap");
@@ -1751,7 +1829,6 @@ public class GameWindow implements BattlePanel.BattleActionListener {
             finishStorySequence("No story scenes are available for this hero yet.");
             return;
         }
-
         int safeIndex = Math.max(0, Math.min(currentStoryIndex, currentStorySequence.length - 1));
         storyProgressLabel.setText("Scene " + (safeIndex + 1) + " / " + currentStorySequence.length);
         startStoryTypewriter(currentStorySequence[safeIndex]);
@@ -1828,122 +1905,49 @@ public class GameWindow implements BattlePanel.BattleActionListener {
                 "greets you and warns that Mystvale Academy is both sanctuary and trial. To survive, " +
                 "you must grow stronger, uncover the truth behind Kim Morvain, and decide what kind of hero you will become.";
 
-        String academy = "Mystvale Academy stands at the edge of danger. Within its halls lie the Library, the Training Ground, "
-                +
-                "the Principal's Office, and the paths leading toward the Forest of Reverie, Reverie's Edge, and the Forsaken Lands. "
-                +
+        String academy = "Mystvale Academy stands at the edge of danger. Within its halls lie the Library, the Training Ground, " +
+                "the Principal's Office, and the paths leading toward the Forest of Reverie, Reverie's Edge, and the Forsaken Lands. " +
                 "Every step forward reveals more than monsters. The academy hides wounds, secrets, and a fate tied to your chosen hero.";
 
         if (selectedHero instanceof Swordsman) {
             return new String[] {
-                    prologue,
-                    academy,
-                    "Kael Solmere carries the burden of a bloodline stained by betrayal. The Solmere family once guarded a forbidden power tied to Kim Morvain, "
-                            +
-                            "and the curse left behind still follows their name. Kael enters Mystvale to become stronger, protect the people he loves, and uncover the truth hidden in his family's shadow.",
-                    "For Kael, this journey is not just about defeating enemies. It is about confronting legacy, loyalty, and the darkness woven into his own blood. "
-                            +
-                            "Every battle at Mystvale brings him closer to either breaking the curse or becoming part of it."
+                    prologue, academy,
+                    "Kael Solmere carries the burden of a bloodline stained by betrayal. The Solmere family once guarded a forbidden power tied to Kim Morvain, " +
+                    "and the curse left behind still follows their name. Kael enters Mystvale to become stronger, protect the people he loves, and uncover the truth hidden in his family's shadow.",
+                    "For Kael, this journey is not just about defeating enemies. It is about confronting legacy, loyalty, and the darkness woven into his own blood. " +
+                    "Every battle at Mystvale brings him closer to either breaking the curse or becoming part of it."
             };
         }
 
         if (selectedHero instanceof Gunner) {
             return new String[] {
-                    prologue,
-                    academy,
-                    "Aria Caelith was stolen from home and forced into Project LUCENT, a cruel experiment designed by Kim Morvain. "
-                            +
-                            "The trials gave Aria terrifying precision and Aether-fueled power, but they also carved pain deep into body and memory.",
-                    "Aria arrives in Mystvale carrying anger, survival instinct, and unfinished vengeance. Each step through the academy is a step toward the truth behind Project LUCENT "
-                            +
-                            "and a reckoning with the man who tried to turn Aria into a weapon."
+                    prologue, academy,
+                    "Aria Caelith was stolen from home and forced into Project LUCENT, a cruel experiment designed by Kim Morvain. " +
+                    "The trials gave Aria terrifying precision and Aether-fueled power, but they also carved pain deep into body and memory.",
+                    "Aria arrives in Mystvale carrying anger, survival instinct, and unfinished vengeance. Each step through the academy is a step toward the truth behind Project LUCENT " +
+                    "and a reckoning with the man who tried to turn Aria into a weapon."
             };
         }
 
         return new String[] {
-                prologue,
-                academy,
-                "Selene Arclight was born with brilliance in cosmic magic, but her gift drew her into Kim Morvain's schemes. "
-                        +
-                        "She helped shape dangerous magic before discovering the horror it would unleash. By the time she tried to escape, a curse had already marked her.",
-                "Selene now walks Mystvale with guilt, pride, and a fierce need to set things right. The road ahead is filled with spells, sacrifice, and buried truths. "
-                        +
-                        "To end Morvain's reign, she must face both the enemy before her and the regret still burning inside."
+                prologue, academy,
+                "Selene Arclight was born with brilliance in cosmic magic, but her gift drew her into Kim Morvain's schemes. " +
+                "She helped shape dangerous magic before discovering the horror it would unleash. By the time she tried to escape, a curse had already marked her.",
+                "Selene now walks Mystvale with guilt, pride, and a fierce need to set things right. The road ahead is filled with spells, sacrifice, and buried truths. " +
+                "To end Morvain's reign, she must face both the enemy before her and the regret still burning inside."
         };
     }
 
-    private void refreshAreaButtons() {
-        if (forestButton == null || swampButton == null || forsakenButton == null) {
-            return;
-        }
-
-        boolean hasHero = hero != null;
-        forestButton.setEnabled(hasHero && hero.hasUnlockedArea1());
-        swampButton.setEnabled(hasHero && hero.hasUnlockedArea2());
-        forsakenButton.setEnabled(hasHero && hero.hasUnlockedArea3());
-
-        forestButton.setToolTipText(
-                hasHero && !hero.hasUnlockedArea1() ? "Unlock through the Principal Office flow." : null);
-        swampButton.setToolTipText(
-                hasHero && !hero.hasUnlockedArea2() ? "Unlock through the Principal Office flow." : null);
-        forsakenButton.setToolTipText(
-                hasHero && !hero.hasUnlockedArea3() ? "Unlock through the Principal Office flow." : null);
-    }
-
-    private void refreshInventoryPanel() {
-        if (hero == null) {
-            inventorySummary.setText("No hero selected.");
-            smallHealthCount.setText("0");
-            mediumHealthCount.setText("0");
-            largeHealthCount.setText("0");
-            smallManaCount.setText("0");
-            mediumManaCount.setText("0");
-            largeManaCount.setText("0");
-            shopGoldLabel.setText("Gold: -");
-            shopStatusLabel.setText("Choose a hero first.");
-            return;
-        }
-
-        Inventory inventory = hero.getInventory();
-        inventorySummary.setText(
-                "HP " + statFormat.format(hero.getHp()) + "/" + statFormat.format(hero.getHpCap()) +
-                        "  |  Mana " + statFormat.format(hero.getMana()) + "/" + statFormat.format(hero.getManaCap()));
-        smallHealthCount.setText(String.valueOf(inventory.getSmallHealthPotion()));
-        mediumHealthCount.setText(String.valueOf(inventory.getMediumHealthPotion()));
-        largeHealthCount.setText(String.valueOf(inventory.getLargeHealthPotion()));
-        smallManaCount.setText(String.valueOf(inventory.getSmallManaPotion()));
-        mediumManaCount.setText(String.valueOf(inventory.getMediumManaPotion()));
-        largeManaCount.setText(String.valueOf(inventory.getLargeManaPotion()));
-        shopGoldLabel.setText("Gold: " + statFormat.format(hero.getGold()));
-    }
-
-    private void refreshProfilePanel() {
-        if (hero == null) {
-            return;
-        }
-
-        profileName.setText(hero.getName());
-        profileClass.setText(hero.getCharClass());
-        profileWeapon.setText(hero.getWeapon());
-        profileLevel.setText(String.valueOf(hero.getLevel()));
-        profileAttack.setText(statFormat.format(hero.getAttack()));
-        profileDefense.setText(statFormat.format(hero.getDefense()));
-        profileSpeed.setText(statFormat.format(hero.getSpeed()));
-        profileSkill1.setText(hero.getSkill1());
-        profileSkill2.setText(hero.getSkill2());
-        profileUltimate.setText(hero.getUltimate());
-    }
+    // -------------------------------------------------------------------------
+    // Academy GUI flows
+    // -------------------------------------------------------------------------
 
     private void openLibraryGui() {
-        if (!requireHero()) {
-            return;
-        }
+        if (!requireHero()) return;
 
         boolean firstVisit = !hero.hasVisitedLibrary();
         hero.setVisitedLibrary(true);
-        if (firstVisit) {
-            playNarrationSequence("Library Narration", buildLibraryNarration());
-        }
+        if (firstVisit) playNarrationSequence("Library Narration", Narration.buildLibraryNarration());
 
         boolean hasQuest1 = !hero.isLibraryQuest1Done();
         boolean hasQuest2 = !hero.isLibraryQuest2Done();
@@ -1956,11 +1960,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         int questChoice;
         if (hasQuest1 && hasQuest2) {
             Object[] options = { "Lost Book Quest", "Riddle Quest", "Back" };
-            questChoice = showOptionSync(
-                    "Library",
-                    "Choose a library quest.",
-                    options,
-                    options[0]);
+            questChoice = showOptionSync("Library", "Choose a library quest.", options, options[0]);
         } else if (hasQuest1) {
             questChoice = 0;
         } else {
@@ -1968,9 +1968,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         }
 
         if (questChoice == 0 && hasQuest1) {
-            int accept = showConfirmSync(
-                    "Library Quest",
-                    "Accept 'Find the Lost Book' quest?");
+            int accept = showConfirmSync("Library Quest", "Accept 'Find the Lost Book' quest?");
             if (accept == 0) {
                 hero.setLibraryQuest1Done(true);
                 grantRewards(800, 120, "Lost Book quest complete!");
@@ -1979,52 +1977,34 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         }
 
         if (questChoice == 1 && hasQuest2) {
-            int accept = showConfirmSync(
-                    "Library Quest",
-                    "Accept 'Riddles of the Library' quest?");
-            if (accept != 0) {
-                return;
-            }
+            int accept = showConfirmSync("Library Quest", "Accept 'Riddles of the Library' quest?");
+            if (accept != 0) return;
 
-            boolean r1 = askRiddle(
+            hero.setRiddle1Done(askRiddle(
                     "Riddle 1: I have pages, but I am not a tree. What am I?",
-                    new Object[] { "Book", "Sword", "Lantern" },
-                    0);
-            hero.setRiddle1Done(r1);
-
-            boolean r2 = askRiddle(
+                    new Object[]{ "Book", "Sword", "Lantern" }, 0));
+            hero.setRiddle2Done(askRiddle(
                     "Riddle 2: I am spent when used to light the way. What am I?",
-                    new Object[] { "Shadow", "Candle", "Stone" },
-                    1);
-            hero.setRiddle2Done(r2);
-
-            boolean r3 = askRiddle(
+                    new Object[]{ "Shadow", "Candle", "Stone" }, 1));
+            hero.setRiddle3Done(askRiddle(
                     "Riddle 3: What grows stronger the more you train?",
-                    new Object[] { "Luck", "Discipline", "Silence" },
-                    1);
-            hero.setRiddle3Done(r3);
+                    new Object[]{ "Luck", "Discipline", "Silence" }, 1));
 
             if (hero.isAllRiddlesDone()) {
                 hero.setLibraryQuest2Done(true);
                 grantRewards(1200, 220, "Riddle quest complete!");
             } else {
-                showInfoSync(
-                        "Library",
-                        "Not all riddles were correct. Try the quest again.");
+                showInfoSync("Library", "Not all riddles were correct. Try the quest again.");
             }
         }
     }
 
     private void openTrainingGui() {
-        if (!requireHero()) {
-            return;
-        }
+        if (!requireHero()) return;
 
         boolean firstVisit = !hero.hasVisitedGym();
         hero.setVisitedGym(true);
-        if (firstVisit) {
-            playNarrationSequence("Training Ground", buildTrainingNarration());
-        }
+        if (firstVisit) playNarrationSequence("Training Ground", Narration.buildTrainingNarration());
 
         if (hero.hasFinishedAllTraining()) {
             showInfoSync("Training Ground", "Training is already complete.");
@@ -2040,18 +2020,13 @@ public class GameWindow implements BattlePanel.BattleActionListener {
                     "Quit Training"
             };
 
-            int choice = showOptionSync(
-                    "Training Ground",
+            int choice = showOptionSync("Training Ground",
                     "Complete all 4 trainings to unlock eligibility for Forest of Reverie.",
-                    options,
-                    options[0]);
+                    options, options[0]);
 
             if (choice == 4 || choice == -1) {
                 if (hero.getNumberOfTrainingFinished() > 0 && hero.getNumberOfTrainingFinished() < 4) {
-                    int confirm = showConfirmSync(
-                            "Training Ground",
-                            "Quit now? Incomplete training progress will reset.");
-
+                    int confirm = showConfirmSync("Training Ground", "Quit now? Incomplete training progress will reset.");
                     if (confirm == 0) {
                         resetTrainingProgress();
                         showInfoSync("Training Ground", "Training progress reset.");
@@ -2064,21 +2039,14 @@ public class GameWindow implements BattlePanel.BattleActionListener {
                 return;
             }
 
-            if (choice == 0 && !hero.hasFinishedEndurance()) {
-                resolveTrainingTask("Endurance", () -> hero.setFinishedEndurance(true));
-            } else if (choice == 1 && !hero.hasFinishedStrength()) {
-                resolveTrainingTask("Strength", () -> hero.setFinishedStrength(true));
-            } else if (choice == 2 && !hero.hasFinishedDurability()) {
-                resolveTrainingTask("Durability", () -> hero.setFinishedDurability(true));
-            } else if (choice == 3 && !hero.hasFinishedManaRefinement()) {
-                resolveTrainingTask("Mana Refinement", () -> hero.setFinishedManaRefinement(true));
-            }
+            if (choice == 0 && !hero.hasFinishedEndurance()) resolveTrainingTask("Endurance", () -> hero.setFinishedEndurance(true));
+            else if (choice == 1 && !hero.hasFinishedStrength()) resolveTrainingTask("Strength", () -> hero.setFinishedStrength(true));
+            else if (choice == 2 && !hero.hasFinishedDurability()) resolveTrainingTask("Durability", () -> hero.setFinishedDurability(true));
+            else if (choice == 3 && !hero.hasFinishedManaRefinement()) resolveTrainingTask("Mana Refinement", () -> hero.setFinishedManaRefinement(true));
 
             if (hero.getNumberOfTrainingFinished() >= 4
-                    && hero.hasFinishedEndurance()
-                    && hero.hasFinishedStrength()
-                    && hero.hasFinishedDurability()
-                    && hero.hasFinishedManaRefinement()) {
+                    && hero.hasFinishedEndurance() && hero.hasFinishedStrength()
+                    && hero.hasFinishedDurability() && hero.hasFinishedManaRefinement()) {
                 hero.setFinishedAllTraining(true);
                 hero.unlockArea1(true);
                 statProgress.endurance(hero);
@@ -2094,52 +2062,64 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     }
 
     private void openShopGui() {
-        if (!requireHero()) {
-            return;
-        }
+        if (!requireHero()) return;
 
         boolean firstVisit = !hero.hasVisitedShop();
         hero.setHasVisitedShop(true);
         if (firstVisit) {
-            playNarrationSequence("Shop Narration", buildShopNarration());
-            playNarrationSequence("Shopkeeper", buildShopConversationNarration());
+            playNarrationSequence("Shop Narration", Narration.buildShopNarration());
+            playNarrationSequence("Shopkeeper", Narration.buildShopConversationNarration());
         }
         subtitleLabel.setText("Browse the academy shop.");
-        shopStatusLabel.setText("Choose an item and quantity.");
+        shopStatusLabel.setText("Choose an item, view details, or purchase a custom amount.");
         refreshInventoryPanel();
         refreshHeroDashboard();
         showScreen(SCREEN_SHOP);
     }
 
-    private void buyShopItem(int itemChoice, int requestedQuantity) {
-        if (!requireHero()) {
-            return;
+    private void openShopItemMenu(int itemChoice) {
+        if (!requireHero()) return;
+
+        String name = SHOP_ITEM_NAMES[itemChoice];
+        int price = SHOP_PRICES[itemChoice];
+        int owned = getPotionCount(hero.getInventory(), itemChoice);
+
+        Object[] options = { "Purchase Item", "View Item Details", "Cancel" };
+        int choice = showOptionSync(name,
+                "Selected: " + name
+                        + "\nPrice: " + statFormat.format(price) + " gold"
+                        + "\nOwned: " + owned,
+                options, options[0]);
+
+        if (choice == 0) {
+            buyShopItem(itemChoice);
+        } else if (choice == 1) {
+            showInfoSync(name, SHOP_ITEM_DETAILS[itemChoice]);
+            shopStatusLabel.setText("Viewed details for " + name + ".");
+        } else if (choice == 2) {
+            shopStatusLabel.setText("Transaction cancelled.");
         }
+    }
+
+    private void buyShopItem(int itemChoice, int requestedQuantity) {
+        if (!requireHero()) return;
 
         Inventory inventory = hero.getInventory();
-        int[] prices = { 450, 1350, 2750, 450, 1350, 2750 };
-        String[] names = {
-                "Small Health Potion",
-                "Medium Health Potion",
-                "Large Health Potion",
-                "Small Mana Potion",
-                "Medium Mana Potion",
-                "Large Mana Potion"
-        };
-
         int currentCount = getPotionCount(inventory, itemChoice);
         int availableCapacity = inventory.getCapacity() - currentCount;
+        String itemName = SHOP_ITEM_NAMES[itemChoice];
+        int price = SHOP_PRICES[itemChoice];
 
         if (availableCapacity <= 0) {
-            shopStatusLabel.setText(names[itemChoice] + " is already at max capacity.");
+            showShopNotice("Shop Keeper", itemName + " is already at max capacity.");
             return;
         }
 
         int quantity = Math.min(requestedQuantity, availableCapacity);
-        int totalCost = prices[itemChoice] * quantity;
+        int totalCost = price * quantity;
 
         if (hero.getGold() < totalCost) {
-            shopStatusLabel.setText("Not enough gold for " + quantity + " " + names[itemChoice] + ".");
+            showShopNotice("Shop Keeper", "Not enough gold for " + quantity + " " + itemName + ".");
             return;
         }
 
@@ -2148,26 +2128,98 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         refreshInventoryPanel();
         refreshHeroDashboard();
 
-        String cappedNote = quantity < requestedQuantity ? " Max capacity reached, so only " + quantity + " bought."
-                : "";
-        shopStatusLabel.setText(
-                "Purchased " + quantity + " " + names[itemChoice] + " for " + statFormat.format(totalCost) + " gold."
-                        + cappedNote);
+        String cappedNote = quantity < requestedQuantity
+                ? " Max capacity reached, so only " + quantity + " bought." : "";
+        shopStatusLabel.setText("Purchased " + quantity + " " + itemName
+                + " for " + statFormat.format(totalCost) + " gold." + cappedNote);
     }
 
-    private void openPrincipalOfficeGui() {
-        if (!requireHero()) {
+    private void buyShopItem(int itemChoice) {
+        if (!requireHero()) return;
+
+        Inventory inventory = hero.getInventory();
+        int currentCount = getPotionCount(inventory, itemChoice);
+        int availableCapacity = inventory.getCapacity() - currentCount;
+        String itemName = SHOP_ITEM_NAMES[itemChoice];
+        int price = SHOP_PRICES[itemChoice];
+
+        if (availableCapacity <= 0) {
+            showShopNotice("Shop Keeper", itemName + " is already at max capacity.");
             return;
         }
 
-        boolean firstVisit = !hero.hasVisitedOffice();
-        hero.setVisitedOffice(true);
-        if (firstVisit) {
-            playNarrationSequence("Principal's Office", buildPrincipalOfficeNarration());
+        if (hero.getGold() < price) {
+            showShopNotice("Shop Keeper", "Not enough gold to purchase " + itemName + ".");
+            return;
         }
 
+        int maxAffordable = hero.getGold() / price;
+        int maxQuantity = Math.min(availableCapacity, Math.min(inventory.getCapacity(), maxAffordable));
+        int quantity = promptShopQuantity(itemName, maxQuantity);
+        if (quantity <= 0) {
+            shopStatusLabel.setText("Purchase cancelled.");
+            return;
+        }
+
+        int totalCost = price * quantity;
+
+        if (hero.getGold() < totalCost) {
+            showShopNotice("Shop Keeper", "Not enough gold for " + quantity + " " + itemName + ".");
+            return;
+        }
+
+        int confirm = showConfirmSync("Confirm Purchase",
+                "Purchase " + quantity + " " + itemName + "(s)"
+                        + "\nfor " + statFormat.format(totalCost) + " gold?");
+        if (confirm != JOptionPane.YES_OPTION) {
+            shopStatusLabel.setText("Purchase cancelled.");
+            return;
+        }
+
+        hero.setGold(hero.getGold() - totalCost);
+        setPotionCount(inventory, itemChoice, currentCount + quantity);
+        refreshInventoryPanel();
+        refreshHeroDashboard();
+
+        shopStatusLabel.setText("Purchased " + quantity + " " + itemName
+                + " for " + statFormat.format(totalCost) + " gold.");
+    }
+
+    private int promptShopQuantity(String itemName, int maxQuantity) {
+        if (maxQuantity <= 0) return 0;
+
+        final int[] quantity = { 0 };
+        runOnEdtSync(() -> {
+            JSpinner amountSpinner = new JSpinner(new SpinnerNumberModel(1, 1, maxQuantity, 1));
+            amountSpinner.setFont(getBodyFont(15f));
+
+            JPanel panel = new JPanel(new BorderLayout(0, 8));
+            panel.add(new JLabel("Enter amount to purchase (max " + maxQuantity + "):"), BorderLayout.NORTH);
+            panel.add(amountSpinner, BorderLayout.CENTER);
+
+            int result = JOptionPane.showConfirmDialog(frame, panel, itemName,
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (result == JOptionPane.OK_OPTION) {
+                quantity[0] = (Integer) amountSpinner.getValue();
+            }
+        });
+        return quantity[0];
+    }
+
+    private void showShopNotice(String title, String message) {
+        shopStatusLabel.setText("Choose an item, view details, or purchase a custom amount.");
+        showInfoSync(title, message);
+    }
+
+    private void openPrincipalOfficeGui() {
+        if (!requireHero()) return;
+
+        boolean firstVisit = !hero.hasVisitedOffice();
+        hero.setVisitedOffice(true);
+        if (firstVisit) playNarrationSequence("Principal's Office", Narration.buildPrincipalOfficeNarration());
+
         if (!hero.hasUnlockedArea1() && hero.canEnterArea1() && hero.hasFinishedAllTraining()) {
-            playNarrationSequence("Eligibility Granted", buildArea1EligibilityNarration());
+            playNarrationSequence("Eligibility Granted", Narration.buildArea1EligibilityNarration());
             hero.setUnlockArea1(true);
             grantRewards(2500, 500, "Eligibility granted: Forest of Reverie unlocked.");
             refreshHeroDashboard();
@@ -2175,7 +2227,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         }
 
         if (!hero.hasUnlockedArea2() && hero.canEnterArea2() && hero.getHaveDefeatedArea1Boss()) {
-            playNarrationSequence("Eligibility Granted", buildArea2EligibilityNarration());
+            playNarrationSequence("Eligibility Granted", Narration.buildArea2EligibilityNarration());
             hero.setUnlockArea2(true);
             grantRewards(2500, 500, "Eligibility granted: Reverie's Edge unlocked.");
             refreshHeroDashboard();
@@ -2183,25 +2235,23 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         }
 
         if (!hero.hasUnlockedArea3() && hero.canEnterArea3() && hero.getHaveDefeatedArea2Boss()) {
-            playNarrationSequence("Eligibility Granted", buildArea3EligibilityNarration());
+            playNarrationSequence("Eligibility Granted", Narration.buildArea3EligibilityNarration());
             hero.setUnlockArea3(true);
             grantRewards(2500, 500, "Eligibility granted: Forsaken Lands unlocked.");
             refreshHeroDashboard();
             return;
         }
 
-        showInfoSync(
-                "Principal's Office",
-                "Not eligible yet.\nFinish training and defeat area bosses first.");
+        showInfoSync("Principal's Office", "Not eligible yet.\nFinish training and defeat area bosses first.");
     }
 
+    // -------------------------------------------------------------------------
+    // Training helpers
+    // -------------------------------------------------------------------------
+
     private void resolveTrainingTask(String taskName, Runnable markComplete) {
-        int start = showConfirmSync(
-                "Training Ground",
-                "Start " + taskName + " challenge?");
-        if (start != 0) {
-            return;
-        }
+        int start = showConfirmSync("Training Ground", "Start " + taskName + " challenge?");
+        if (start != 0) return;
 
         boolean success = random.nextInt(10) <= 7;
         if (success) {
@@ -2223,6 +2273,10 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         hero.unlockArea1(false);
     }
 
+    // -------------------------------------------------------------------------
+    // Potion helpers
+    // -------------------------------------------------------------------------
+
     private int getPotionCount(Inventory inventory, int index) {
         return switch (index) {
             case 0 -> inventory.getSmallHealthPotion();
@@ -2243,115 +2297,64 @@ public class GameWindow implements BattlePanel.BattleActionListener {
             case 3 -> inventory.setSmallManaPotion(value);
             case 4 -> inventory.setMediumManaPotion(value);
             case 5 -> inventory.setLargeManaPotion(value);
-            default -> {
-            }
         }
     }
+
+    private void usePotion(String itemCode) {
+        if (!requireHero()) return;
+        Inventory inventory = hero.getInventory();
+
+        switch (itemCode) {
+            case "SH" -> { if (inventory.getSmallHealthPotion() > 0) inventory.useSmallHealthPotion(hero); }
+            case "MH" -> { if (inventory.getMediumHealthPotion() > 0) inventory.useMediumHealthPotion(hero); }
+            case "LH" -> { if (inventory.getLargeHealthPotion() > 0) inventory.useLargeHealthPotion(hero); }
+            case "SM" -> { if (inventory.getSmallManaPotion() > 0) inventory.useSmallManaPotion(hero); }
+            case "MM" -> { if (inventory.getMediumManaPotion() > 0) inventory.useMediumManaPotion(hero); }
+            case "LM" -> { if (inventory.getLargeManaPotion() > 0) inventory.useLargeManaPotion(hero); }
+        }
+
+        refreshInventoryPanel();
+        refreshHeroDashboard();
+    }
+
+    // -------------------------------------------------------------------------
+    // Rewards + riddles
+    // -------------------------------------------------------------------------
 
     private void grantRewards(int gold, int xp, String message) {
         hero.setGold(hero.getGold() + gold);
         hero.levelUp(xp);
-        if (hero.getHp() > hero.getHpCap()) {
-            hero.setHpCap(hero.getHp());
-        }
-        if (hero.getMana() > hero.getManaCap()) {
-            hero.setManaCap(hero.getMana());
-        }
+        if (hero.getHp() > hero.getHpCap()) hero.setHpCap(hero.getHp());
+        if (hero.getMana() > hero.getManaCap()) hero.setManaCap(hero.getMana());
         refreshHeroDashboard();
         refreshInventoryPanel();
         refreshProfilePanel();
-
-        showInfoSync(
-                "Rewards",
-                message + "\nRewards: +" + statFormat.format(gold) + " gold, +" + statFormat.format(xp) + " XP.");
+        showInfoSync("Rewards", message + "\nRewards: +" + statFormat.format(gold) + " gold, +" + statFormat.format(xp) + " XP.");
     }
 
     private boolean askRiddle(String question, Object[] options, int correctIndex) {
-        int answer = showOptionSync(
-                "Library Riddle",
-                question,
-                options,
-                options[0]);
-
-        return answer == correctIndex;
+        return showOptionSync("Library Riddle", question, options, options[0]) == correctIndex;
     }
 
-    private void usePotion(String itemCode) {
-        if (!requireHero()) {
-            return;
-        }
-
-        Inventory inventory = hero.getInventory();
-
-        switch (itemCode) {
-            case "SH":
-                if (inventory.getSmallHealthPotion() > 0) {
-                    inventory.useSmallHealthPotion(hero);
-                }
-                break;
-            case "MH":
-                if (inventory.getMediumHealthPotion() > 0) {
-                    inventory.useMediumHealthPotion(hero);
-                }
-                break;
-            case "LH":
-                if (inventory.getLargeHealthPotion() > 0) {
-                    inventory.useLargeHealthPotion(hero);
-                }
-                break;
-            case "SM":
-                if (inventory.getSmallManaPotion() > 0) {
-                    inventory.useSmallManaPotion(hero);
-                }
-                break;
-            case "MM":
-                if (inventory.getMediumManaPotion() > 0) {
-                    inventory.useMediumManaPotion(hero);
-                }
-                break;
-            case "LM":
-                if (inventory.getLargeManaPotion() > 0) {
-                    inventory.useLargeManaPotion(hero);
-                }
-                break;
-            default:
-                break;
-        }
-
-        refreshInventoryPanel();
-        refreshHeroDashboard();
-    }
+    // -------------------------------------------------------------------------
+    // Area launchers
+    // -------------------------------------------------------------------------
 
     private void launchArea1() {
-        if (!requireHero()) {
-            return;
-        }
-        if (!hero.hasUnlockedArea1()) {
-            showInfoSync("Forest of Reverie", "Forest of Reverie is still locked.");
-            return;
-        }
+        if (!requireHero()) return;
+        if (!hero.hasUnlockedArea1()) { showInfoSync("Forest of Reverie", "Forest of Reverie is still locked."); return; }
         startAreaAdventureAsync(this::startForestOfReverieAdventure);
     }
 
     private void launchArea2() {
-        if (!requireHero()) {
-            return;
-        }
-        if (!hero.hasUnlockedArea2()) {
-            showInfoSync("Reverie's Edge", "Reverie's Edge is still locked.");
-            return;
-        }
+        if (!requireHero()) return;
+        if (!hero.hasUnlockedArea2()) { showInfoSync("Reverie's Edge", "Reverie's Edge is still locked."); return; }
         startAreaAdventureAsync(this::startReveriesEdgeAdventure);
     }
 
     private void launchArea3() {
-        if (!requireHero()) {
-            return;
-        }
-        if (!hero.hasUnlockedArea3()) {
-            showInfoSync("Forsaken Lands", "Forsaken Lands is still locked.");
-            return;
-        }
+        if (!requireHero()) return;
+        if (!hero.hasUnlockedArea3()) { showInfoSync("Forsaken Lands", "Forsaken Lands is still locked."); return; }
         startAreaAdventureAsync(this::startForsakenLandsAdventure);
     }
 
@@ -2362,9 +2365,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
             try {
                 adventureTask.run();
             } catch (Exception exception) {
-                SwingUtilities.invokeLater(() -> showWarningSync(
-                        "Error",
-                        "Area flow error: " + exception.getMessage()));
+                SwingUtilities.invokeLater(() -> showWarningSync("Error", "Area flow error: " + exception.getMessage()));
             } finally {
                 SwingUtilities.invokeLater(() -> {
                     refreshHeroDashboard();
@@ -2385,109 +2386,84 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         worker.start();
     }
 
-    private void startForestOfReverieAdventure() {
-        if (!requireHero()) {
-            return;
+    private void runTravelTransitionSync() {
+        if (frame == null) return;
+
+        CountDownLatch transitionFinished = new CountDownLatch(1);
+        SwingUtilities.invokeLater(() -> transitionManager.runTransition(frame, null, transitionFinished::countDown));
+        try {
+            transitionFinished.await();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Area adventures
+    // -------------------------------------------------------------------------
+
+    private void startForestOfReverieAdventure() {
+        if (!requireHero()) return;
 
         boolean firstVisit = !hero.hasVisitedArea1();
         hero.setHasVisitedArea1(true);
-        if (firstVisit) {
-            playNarrationSequence("Forest of Reverie", buildArea1Narration());
-        }
+        if (firstVisit) playNarrationSequence("Forest of Reverie", Narration.buildArea1Narration());
+        runTravelTransitionSync();
 
-        Entity[] encounters = {
-                new Goblin(),
-                new Slime(),
-                new MudLurker(),
-                new Elderthorn()
-        };
+        Entity[] encounters = { new Goblin(), new Slime(), new MudLurker(), new Elderthorn() };
         int[] goldRewards = { 360, 420, 680, 1200 };
         int[] xpRewards = { 90, 110, 180, 320 };
 
-        boolean completed = runAreaAdventure("Forest of Reverie", encounters, goldRewards, xpRewards);
-        if (!completed) {
-            return;
-        }
+        if (!runAreaAdventure("Forest of Reverie", encounters, goldRewards, xpRewards)) return;
 
         hero.setHaveDefeatedArea1Boss(true);
         hero.unlockArea2(true);
-        showInfoSync("Area Cleared",
-                "Forest of Reverie cleared.\nVisit Principal's Office to process Area 2 eligibility.");
+        showInfoSync("Area Cleared", "Forest of Reverie cleared.\nVisit Principal's Office to process Area 2 eligibility.");
     }
 
     private void startReveriesEdgeAdventure() {
-        if (!requireHero()) {
-            return;
-        }
+        if (!requireHero()) return;
 
         boolean firstVisit = !hero.hasVisitedArea2();
         hero.setHasVisitedArea2(true);
-        if (firstVisit) {
-            playNarrationSequence("Reverie's Edge", buildArea2Narration());
-        }
+        if (firstVisit) playNarrationSequence("Reverie's Edge", Narration.buildArea2Narration());
+        runTravelTransitionSync();
 
-        Entity[] encounters = {
-                new SwampRat(),
-                new VeilSerpent(),
-                new FadingWarden(),
-                new Morgrath()
-        };
+        Entity[] encounters = { new SwampRat(), new VeilSerpent(), new FadingWarden(), new Morgrath() };
         int[] goldRewards = { 520, 620, 900, 1500 };
         int[] xpRewards = { 130, 170, 240, 420 };
 
-        boolean completed = runAreaAdventure("Reverie's Edge", encounters, goldRewards, xpRewards);
-        if (!completed) {
-            return;
-        }
+        if (!runAreaAdventure("Reverie's Edge", encounters, goldRewards, xpRewards)) return;
 
         hero.setHaveDefeatedArea2Boss(true);
         hero.unlockArea3(true);
-        showInfoSync("Area Cleared",
-                "Reverie's Edge cleared.\nVisit Principal's Office to process Area 3 eligibility.");
+        showInfoSync("Area Cleared", "Reverie's Edge cleared.\nVisit Principal's Office to process Area 3 eligibility.");
     }
 
     private void startForsakenLandsAdventure() {
-        if (!requireHero()) {
-            return;
-        }
+        if (!requireHero()) return;
 
         boolean firstVisit = !hero.hasVisitedArea3();
         hero.setHasVisitedArea3(true);
-        if (firstVisit) {
-            playNarrationSequence("Forsaken Lands", buildArea3Narration());
-        }
+        if (firstVisit) playNarrationSequence("Forsaken Lands", Narration.buildArea3Narration());
+        runTravelTransitionSync();
 
-        Entity[] encounters = {
-                new ShadowAbyss(),
-                new VoidBeast(),
-                new HollowKing(),
-                new Azrael(),
-                new Kim()
-        };
+        Entity[] encounters = { new ShadowAbyss(), new VoidBeast(), new HollowKing(), new Azrael(), new Kim() };
         int[] goldRewards = { 760, 880, 1300, 2000, 4000 };
         int[] xpRewards = { 210, 260, 360, 650, 1500 };
 
-        boolean completed = runAreaAdventure("Forsaken Lands", encounters, goldRewards, xpRewards);
-        if (!completed) {
-            return;
-        }
+        if (!runAreaAdventure("Forsaken Lands", encounters, goldRewards, xpRewards)) return;
 
         hero.setHaveDefeatedArea3Boss(true);
 
         Object[] options = { "Sacrifice and Return", "Refuse and Repeat Cycle" };
-        int endingChoice = showOptionSync(
-                "Final Choice",
-                "Kim Morvain has fallen.\nChoose your fate:",
-                options,
-                options[0]);
+        int endingChoice = showOptionSync("Final Choice", "Kim Morvain has fallen.\nChoose your fate:", options, options[0]);
 
         if (endingChoice == 0) {
-            playNarrationSequence("Final Ending", buildSacrificeEndingNarration());
-            showInfoSync("Ending",
-                    "You sacrificed your character and returned to the real world.\nYou cleared the game.");
+            playNarrationSequence("Final Ending", Narration.buildSacrificeEndingNarration());
+            showInfoSync("Ending", "You sacrificed your character and returned to the real world.\nYou cleared the game.");
         } else {
-            playNarrationSequence("Loop Ending", buildLoopEndingNarration());
+            playNarrationSequence("Loop Ending", Narration.buildLoopEndingNarration());
             hero.resetAllProgress();
             hero = null;
             runOnEdtSync(() -> {
@@ -2502,27 +2478,21 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     }
 
     private boolean runAreaAdventure(String areaName, Entity[] encounters, int[] goldRewards, int[] xpRewards) {
+        if (encounters.length > 0) {
+            showAreaBattleContext(areaName, encounters[0], "Arrived in " + areaName + ".\nPrepare for battle.");
+        }
         showInfoSync(areaName, "Entering " + areaName + "...\nPrepare for battle!");
 
         for (int i = 0; i < encounters.length; i++) {
             Entity enemy = encounters[i];
-            String header = enemy.getName();
-
-            int proceed = showConfirmSync(areaName, header + "\nStart battle?");
-            if (proceed != 0) {
-                showInfoSync(areaName, "Adventure cancelled.");
-                return false;
-            }
+            showAreaBattleContext(areaName, enemy, enemy.getName() + " blocks your path.");
+            int proceed = showConfirmSync(areaName, enemy.getName() + "\nStart battle?");
+            if (proceed != 0) { showInfoSync(areaName, "Adventure cancelled."); return false; }
 
             BattleOutcome outcome = runButtonBattle(enemy, areaName);
-            if (outcome == BattleOutcome.RAN) {
-                showInfoSync(areaName, "You retreated from battle.");
-                return false;
-            }
-
+            if (outcome == BattleOutcome.RAN) { showInfoSync(areaName, "You retreated from battle."); return false; }
             if (outcome == BattleOutcome.LOST) {
-                showWarningSync("Defeat",
-                        "You were defeated and brought back outside the academy.\nArea progress was not completed.");
+                showWarningSync("Defeat", "You were defeated and brought back outside the academy.\nArea progress was not completed.");
                 return false;
             }
 
@@ -2532,10 +2502,31 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         return true;
     }
 
+    private void showAreaBattleContext(String areaName, Entity enemy, String logText) {
+        runOnEdtSync(() -> {
+            enemy.setHpCap(enemy.getHp());
+            enemy.setManaCap(enemy.getMana());
+            battlePanel.restoreBattleButtons();
+            battlePanel.getBattleTitleValue().setText(areaName);
+            battlePanel.getBattleRoundValue().setText("Prepare");
+            battlePanel.getBattleHeroNameValue().setText(hero.getName());
+            battlePanel.getBattleEnemyNameValue().setText(enemy.getName());
+            updateEnemySprite(enemy);
+            updateBattleBars(enemy);
+            battlePanel.getBattleLogArea().setText(logText);
+            battlePanel.getBattleLogArea().setCaretPosition(0);
+            battlePanel.setBattleButtonsEnabled(false);
+            subtitleLabel.setText(areaName);
+            showScreen(SCREEN_BATTLE);
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Battle engine
+    // -------------------------------------------------------------------------
+
     private BattleOutcome runButtonBattle(Entity enemy, String battleTitle) {
-        if (!requireHero()) {
-            return BattleOutcome.LOST;
-        }
+        if (!requireHero()) return BattleOutcome.LOST;
 
         int originalHp = hero.getHp();
         int originalMana = hero.getMana();
@@ -2559,36 +2550,24 @@ public class GameWindow implements BattlePanel.BattleActionListener {
                 battleLog = appendBattleLog(battleLog, hero.getName() + " is stunned and loses this turn.");
             } else {
                 int choice = chooseBattleAction(enemy, round, battleTitle, battleLog);
-                if (choice == -1) {
-                    choice = 5;
-                }
+                if (choice == -1) choice = 5;
 
-                if (choice == 4) {
-                    usePotionInBattle();
-                    continue;
-                }
+                if (choice == 4) { usePotionInBattle(); continue; }
 
                 if (choice == 5) {
                     if (attemptRunAway(enemy)) {
-                        restoreHeroBattleState(
-                                originalHp,
-                                originalMana,
-                                originalCooldown1,
-                                originalCooldown2,
-                                originalCooldownU,
-                                originalStun,
-                                originalPoison);
+                        restoreHeroBattleState(originalHp, originalMana, originalCooldown1,
+                                originalCooldown2, originalCooldownU, originalStun, originalPoison);
                         return BattleOutcome.RAN;
                     }
-
                     battleLog = appendBattleLog(battleLog, "Retreat failed.");
                 } else {
-                    String playerActionResult = performPlayerAction(choice, enemy);
-                    if (playerActionResult.startsWith("INVALID:")) {
-                        showInfoSync("Battle", playerActionResult.replace("INVALID:", "").trim());
+                    String result = performPlayerAction(choice, enemy);
+                    if (result.startsWith("INVALID:")) {
+                        showInfoSync("Battle", result.replace("INVALID:", "").trim());
                         continue;
                     }
-                    battleLog = appendBattleLog(battleLog, playerActionResult);
+                    battleLog = appendBattleLog(battleLog, result);
                 }
             }
 
@@ -2597,26 +2576,20 @@ public class GameWindow implements BattlePanel.BattleActionListener {
 
             if (enemy.getHp() <= 0) {
                 enemy.setHp(0);
-                battleLog = appendBattleLog(battleLog, enemy.getName() + " was defeated.");
+                battleLog = enemy.getName() + " was defeated.";
                 showInfoSync(battleTitle, battleLog);
-                restoreHeroBattleState(
-                        originalHp,
-                        originalMana,
-                        originalCooldown1,
-                        originalCooldown2,
-                        originalCooldownU,
-                        originalStun,
-                        originalPoison);
+                restoreHeroBattleState(originalHp, originalMana, originalCooldown1,
+                        originalCooldown2, originalCooldownU, originalStun, originalPoison);
                 return BattleOutcome.WON;
             }
 
-            if (enemy.getStunned() > 0) {
-                battleLog = appendBattleLog(battleLog, enemy.getName() + " is stunned and cannot act.");
-            } else if (enemy.getDisabled() > 0) {
-                battleLog = appendBattleLog(battleLog, enemy.getName() + " is disabled and cannot act.");
-            } else {
-                battleLog = appendBattleLog(battleLog, performEnemyAction(enemy));
-            }
+            // if (enemy.getStunned() > 0) {
+            //     battleLog = appendBattleLog(battleLog, enemy.getName() + " is stunned and cannot act.");
+            // } else if (enemy.getDisabled() > 0) {
+            //     battleLog = appendBattleLog(battleLog, enemy.getName() + " is disabled and cannot act.");
+            // } else {
+            //     battleLog = appendBattleLog(battleLog, performEnemyAction(enemy));
+            // }
 
             applyEnemyAfterTurnEffects(enemy);
             reduceEnemyCooldowns(enemy);
@@ -2624,28 +2597,16 @@ public class GameWindow implements BattlePanel.BattleActionListener {
             if (hero.getHp() <= 0) {
                 hero.setHp(0);
                 showWarningSync(battleTitle, battleLog);
-                restoreHeroBattleState(
-                        originalHp,
-                        originalMana,
-                        originalCooldown1,
-                        originalCooldown2,
-                        originalCooldownU,
-                        originalStun,
-                        originalPoison);
+                restoreHeroBattleState(originalHp, originalMana, originalCooldown1,
+                        originalCooldown2, originalCooldownU, originalStun, originalPoison);
                 return BattleOutcome.LOST;
             }
 
             round++;
         }
 
-        restoreHeroBattleState(
-                originalHp,
-                originalMana,
-                originalCooldown1,
-                originalCooldown2,
-                originalCooldownU,
-                originalStun,
-                originalPoison);
+        restoreHeroBattleState(originalHp, originalMana, originalCooldown1,
+                originalCooldown2, originalCooldownU, originalStun, originalPoison);
         return hero.getHp() > 0 ? BattleOutcome.WON : BattleOutcome.LOST;
     }
 
@@ -2659,20 +2620,20 @@ public class GameWindow implements BattlePanel.BattleActionListener {
             updateEnemySprite(enemy);
             updateBattleBars(enemy);
             battlePanel.getBattleLogArea().setText(truncateBattleLog(battleLog));
-            battlePanel.getBattleLogArea().setCaretPosition(battlePanel.getBattleLogArea().getDocument().getLength());
+            battlePanel.getBattleLogArea().setCaretPosition(
+                    battlePanel.getBattleLogArea().getDocument().getLength());
             subtitleLabel.setText(battleTitle);
             showScreen(SCREEN_BATTLE);
             battlePanel.setBattleButtonsEnabled(true);
         });
-
         return waitForBattleAction();
     }
 
     private void updateBattleBars(Entity enemy) {
         battlePanel.getBattleHeroHpBar().setMaximum(Math.max(1, hero.getHpCap()));
         battlePanel.getBattleHeroHpBar().setValue(Math.max(0, hero.getHp()));
-        battlePanel.getBattleHeroHpBar()
-                .setString(statFormat.format(Math.max(0, hero.getHp())) + " / " + statFormat.format(hero.getHpCap()));
+        battlePanel.getBattleHeroHpBar().setString(
+                statFormat.format(Math.max(0, hero.getHp())) + " / " + statFormat.format(hero.getHpCap()));
         battlePanel.getBattleHeroLevelValue().setText("Level " + hero.getLevel());
 
         battlePanel.getBattleHeroManaBar().setMaximum(Math.max(1, hero.getManaCap()));
@@ -2682,8 +2643,8 @@ public class GameWindow implements BattlePanel.BattleActionListener {
 
         battlePanel.getBattleEnemyHpBar().setMaximum(Math.max(1, enemy.getHpCap()));
         battlePanel.getBattleEnemyHpBar().setValue(Math.max(0, enemy.getHp()));
-        battlePanel.getBattleEnemyHpBar()
-                .setString(statFormat.format(Math.max(0, enemy.getHp())) + " / " + statFormat.format(enemy.getHpCap()));
+        battlePanel.getBattleEnemyHpBar().setString(
+                statFormat.format(Math.max(0, enemy.getHp())) + " / " + statFormat.format(enemy.getHpCap()));
 
         battlePanel.getBattleEnemyManaBar().setMaximum(Math.max(1, enemy.getManaCap()));
         battlePanel.getBattleEnemyManaBar().setValue(Math.max(0, enemy.getMana()));
@@ -2693,9 +2654,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
 
     private void submitBattleAction(int action) {
         synchronized (battleActionLock) {
-            if (pendingBattleAction != null) {
-                return;
-            }
+            if (pendingBattleAction != null) return;
             pendingBattleAction = action;
             runOnEdtSync(() -> battlePanel.setBattleButtonsEnabled(false));
             battleActionLock.notifyAll();
@@ -2708,7 +2667,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
             while (pendingBattleAction == null) {
                 try {
                     battleActionLock.wait();
-                } catch (InterruptedException interruptedException) {
+                } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return 5;
                 }
@@ -2719,61 +2678,9 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         }
     }
 
-    private void runOnEdtSync(Runnable task) {
-        if (SwingUtilities.isEventDispatchThread()) {
-            task.run();
-            return;
-        }
-
-        try {
-            SwingUtilities.invokeAndWait(task);
-        } catch (Exception ignored) {
-        }
-    }
-
-    private void showInfoSync(String title, String message) {
-        runOnEdtSync(() -> {
-            if (overlay != null) {
-                overlay.showMessage(title, message);
-            }
-        });
-    }
-
-    private void showNarrationSync(String title, String message, boolean fadeIn, boolean fadeOut) {
-        runOnEdtSync(() -> {
-            if (overlay != null) {
-                overlay.showMessageSequence(title, message, fadeIn, fadeOut);
-            }
-        });
-    }
-
-    private void showWarningSync(String title, String message) {
-        runOnEdtSync(() -> {
-            if (overlay != null) {
-                overlay.showMessage(title, message);
-            }
-        });
-    }
-
-    private int showConfirmSync(String title, String message) {
-        final int[] choice = { 1 };
-        runOnEdtSync(() -> {
-            if (overlay != null) {
-                choice[0] = overlay.showConfirm(title, message);
-            }
-        });
-        return choice[0];
-    }
-
-    private int showOptionSync(String title, String message, Object[] options, Object initial) {
-        final int[] choice = { -1 };
-        runOnEdtSync(() -> {
-            if (overlay != null) {
-                choice[0] = overlay.showOptions(title, message, options, initial);
-            }
-        });
-        return choice[0];
-    }
+    // -------------------------------------------------------------------------
+    // Player / enemy actions
+    // -------------------------------------------------------------------------
 
     private String performPlayerAction(int choice, Entity enemy) {
         int enemyHpBefore = enemy.getHp();
@@ -2781,38 +2688,23 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         int enemyStunBefore = enemy.getStunned();
 
         switch (choice) {
-            case 0:
-                hero.basicAttack(hero, enemy);
-                break;
-            case 1:
-                if (hero.getMana() < hero.scaledCost(hero.getManaCostSkill1())) {
-                    return "INVALID:Not enough mana for Skill 1.";
-                }
-                if (hero.getCooldown1() > 0) {
-                    return "INVALID:Skill 1 is on cooldown (" + hero.getCooldown1() + ").";
-                }
+            case 0 -> hero.basicAttack(hero, enemy);
+            case 1 -> {
+                if (hero.getMana() < hero.scaledCost(hero.getManaCostSkill1())) return "INVALID:Not enough mana for Skill 1.";
+                if (hero.getCooldown1() > 0) return "INVALID:Skill 1 is on cooldown (" + hero.getCooldown1() + ").";
                 hero.skill1(hero, enemy);
-                break;
-            case 2:
-                if (hero.getMana() < hero.scaledCost(hero.getManaCostSkill2())) {
-                    return "INVALID:Not enough mana for Skill 2.";
-                }
-                if (hero.getCooldown2() > 0) {
-                    return "INVALID:Skill 2 is on cooldown (" + hero.getCooldown2() + ").";
-                }
+            }
+            case 2 -> {
+                if (hero.getMana() < hero.scaledCost(hero.getManaCostSkill2())) return "INVALID:Not enough mana for Skill 2.";
+                if (hero.getCooldown2() > 0) return "INVALID:Skill 2 is on cooldown (" + hero.getCooldown2() + ").";
                 hero.skill2(hero, enemy);
-                break;
-            case 3:
-                if (hero.getMana() < hero.scaledCost(hero.getManaCostUltimate())) {
-                    return "INVALID:Not enough mana for Ultimate.";
-                }
-                if (hero.getCooldownU() > 0) {
-                    return "INVALID:Ultimate is on cooldown (" + hero.getCooldownU() + ").";
-                }
+            }
+            case 3 -> {
+                if (hero.getMana() < hero.scaledCost(hero.getManaCostUltimate())) return "INVALID:Not enough mana for Ultimate.";
+                if (hero.getCooldownU() > 0) return "INVALID:Ultimate is on cooldown (" + hero.getCooldownU() + ").";
                 hero.ultimate(hero, enemy);
-                break;
-            default:
-                return "INVALID:Invalid action.";
+            }
+            default -> { return "INVALID:Invalid action."; }
         }
 
         int dealt = Math.max(0, enemyHpBefore - enemy.getHp());
@@ -2820,13 +2712,8 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         boolean stunned = enemy.getStunned() > enemyStunBefore;
 
         String text = hero.getName() + " dealt " + statFormat.format(dealt) + " to " + enemy.getName() + ".";
-        if (manaSpent > 0) {
-            text += " Mana -" + statFormat.format(manaSpent) + ".";
-        }
-        if (stunned) {
-            text += " Enemy stunned.";
-        }
-
+        if (manaSpent > 0) text += " Mana -" + statFormat.format(manaSpent) + ".";
+        if (stunned) text += " Enemy stunned.";
         return text;
     }
 
@@ -2837,7 +2724,6 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         int heroPoisonBefore = hero.getPoison();
 
         int choice = selectEnemyAction(enemy);
-
         switch (choice) {
             case 1 -> enemy.basicAttack(enemy, hero);
             case 2 -> enemy.skill1(enemy, hero);
@@ -2853,48 +2739,34 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         boolean poisoned = hero.getPoison() > heroPoisonBefore;
 
         String text = enemy.getName() + " dealt " + statFormat.format(damage) + " to " + hero.getName() + ".";
-        if (manaSpent > 0) {
-            text += " Enemy mana -" + statFormat.format(manaSpent) + ".";
-        }
-        if (stunned) {
-            text += " You are stunned.";
-        }
-        if (poisoned) {
-            text += " You are poisoned.";
-        }
-
+        if (manaSpent > 0) text += " Enemy mana -" + statFormat.format(manaSpent) + ".";
+        if (stunned) text += " You are stunned.";
+        if (poisoned) text += " You are poisoned.";
         return text;
     }
 
     private int selectEnemyAction(Entity enemy) {
         int[] pool = new int[5];
         int count = 0;
-
         pool[count++] = 1;
 
-        if (enemy.getMana() >= enemy.getManaCostSkill1() && enemy.getCooldown1() == 0) {
-            pool[count++] = 2;
-        }
-        if (enemy.getMana() >= enemy.getManaCostSkill2() && enemy.getCooldown2() == 0) {
-            pool[count++] = 3;
-        }
+        if (enemy.getMana() >= enemy.getManaCostSkill1() && enemy.getCooldown1() == 0) pool[count++] = 2;
+        if (enemy.getMana() >= enemy.getManaCostSkill2() && enemy.getCooldown2() == 0) pool[count++] = 3;
 
-        boolean hasSkill3 = enemy.getSkill3() != null
-                && !enemy.getSkill3().isBlank()
+        boolean hasSkill3 = enemy.getSkill3() != null && !enemy.getSkill3().isBlank()
                 && !"Unknown".equalsIgnoreCase(enemy.getSkill3());
-        if (hasSkill3 && enemy.getMana() >= enemy.getManaCostSkill3() && enemy.getCooldown3() == 0) {
-            pool[count++] = 4;
-        }
+        if (hasSkill3 && enemy.getMana() >= enemy.getManaCostSkill3() && enemy.getCooldown3() == 0) pool[count++] = 4;
 
-        boolean hasUltimate = enemy.getUltimate() != null
-                && !enemy.getUltimate().isBlank()
+        boolean hasUltimate = enemy.getUltimate() != null && !enemy.getUltimate().isBlank()
                 && !"Unknown".equalsIgnoreCase(enemy.getUltimate());
-        if (hasUltimate && enemy.getMana() >= enemy.getManaCostUltimate() && enemy.getCooldownU() == 0) {
-            pool[count++] = 5;
-        }
+        if (hasUltimate && enemy.getMana() >= enemy.getManaCostUltimate() && enemy.getCooldownU() == 0) pool[count++] = 5;
 
         return pool[random.nextInt(count)];
     }
+
+    // -------------------------------------------------------------------------
+    // Turn effects + cooldowns
+    // -------------------------------------------------------------------------
 
     private void applyPlayerAfterTurnEffects() {
         if (hero.getPoison() > 0) {
@@ -2902,67 +2774,40 @@ public class GameWindow implements BattlePanel.BattleActionListener {
             hero.setHp(Math.max(0, hero.getHp() - poisonDamage));
             hero.setPoison(hero.getPoison() - 1);
         }
-
-        if (hero.getStunned() >= 0) {
-            hero.setStun(hero.getStunned() - 1);
-        }
-
-        if (hero.getStunned() < -1) {
-            hero.setStun(-1);
-        }
-        if (hero.getPoison() < 0) {
-            hero.setPoison(0);
-        }
+        if (hero.getStunned() >= 0) hero.setStun(hero.getStunned() - 1);
+        if (hero.getStunned() < -1) hero.setStun(-1);
+        if (hero.getPoison() < 0) hero.setPoison(0);
     }
 
     private void applyEnemyAfterTurnEffects(Entity enemy) {
-        if (enemy.getStunned() >= 0) {
-            enemy.setStun(enemy.getStunned() - 1);
-        }
-        if (enemy.getDisabled() >= 0) {
-            enemy.setDisabled(enemy.getDisabled() - 1);
-        }
-        if (enemy.getStunned() < -1) {
-            enemy.setStun(-1);
-        }
-        if (enemy.getDisabled() < -1) {
-            enemy.setDisabled(-1);
-        }
+        if (enemy.getStunned() >= 0) enemy.setStun(enemy.getStunned() - 1);
+        if (enemy.getDisabled() >= 0) enemy.setDisabled(enemy.getDisabled() - 1);
+        if (enemy.getStunned() < -1) enemy.setStun(-1);
+        if (enemy.getDisabled() < -1) enemy.setDisabled(-1);
     }
 
     private void reducePlayerCooldowns() {
-        if (hero.getCooldown1() > 0) {
-            hero.setCooldown1(hero.getCooldown1() - 1);
-        }
-        if (hero.getCooldown2() > 0) {
-            hero.setCooldown2(hero.getCooldown2() - 1);
-        }
-        if (hero.getCooldownU() > 0) {
-            hero.setCooldownU(hero.getCooldownU() - 1);
-        }
+        if (hero.getCooldown1() > 0) hero.setCooldown1(hero.getCooldown1() - 1);
+        if (hero.getCooldown2() > 0) hero.setCooldown2(hero.getCooldown2() - 1);
+        if (hero.getCooldownU() > 0) hero.setCooldownU(hero.getCooldownU() - 1);
     }
 
     private void reduceEnemyCooldowns(Entity enemy) {
-        if (enemy.getCooldown1() > 0) {
-            enemy.setCooldown1(enemy.getCooldown1() - 1);
-        }
-        if (enemy.getCooldown2() > 0) {
-            enemy.setCooldown2(enemy.getCooldown2() - 1);
-        }
-        if (enemy.getCooldown3() > 0) {
-            enemy.setCooldown3(enemy.getCooldown3() - 1);
-        }
-        if (enemy.getCooldownU() > 0) {
-            enemy.setCooldownU(enemy.getCooldownU() - 1);
-        }
+        if (enemy.getCooldown1() > 0) enemy.setCooldown1(enemy.getCooldown1() - 1);
+        if (enemy.getCooldown2() > 0) enemy.setCooldown2(enemy.getCooldown2() - 1);
+        if (enemy.getCooldown3() > 0) enemy.setCooldown3(enemy.getCooldown3() - 1);
+        if (enemy.getCooldownU() > 0) enemy.setCooldownU(enemy.getCooldownU() - 1);
     }
+
+    // -------------------------------------------------------------------------
+    // Run + potion in battle
+    // -------------------------------------------------------------------------
 
     private boolean attemptRunAway(Entity enemy) {
         double baseChance = 30.0;
         double speedFactor = (hero.getSpeed() - enemy.getSpeed()) * 0.5;
         double successChance = Math.max(10.0, Math.min(90.0, baseChance + speedFactor));
-        double roll = random.nextDouble() * 100.0;
-        return roll <= successChance;
+        return random.nextDouble() * 100.0 <= successChance;
     }
 
     private void usePotionInBattle() {
@@ -2978,89 +2823,34 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         };
 
         int choice = showOptionSync("Inventory", "Choose a potion.", options, options[0]);
-
-        if (choice == 6 || choice == -1) {
-            return;
-        }
+        if (choice == 6 || choice == -1) return;
 
         int hpBefore = hero.getHp();
         int manaBefore = hero.getMana();
 
         switch (choice) {
-            case 0 -> {
-                if (inventory.getSmallHealthPotion() > 0) {
-                    inventory.useSmallHealthPotion(hero);
-                } else {
-                    showInfoSync("Inventory", "No Small Health Potion left.");
-                    return;
-                }
-            }
-            case 1 -> {
-                if (inventory.getMediumHealthPotion() > 0) {
-                    inventory.useMediumHealthPotion(hero);
-                } else {
-                    showInfoSync("Inventory", "No Medium Health Potion left.");
-                    return;
-                }
-            }
-            case 2 -> {
-                if (inventory.getLargeHealthPotion() > 0) {
-                    inventory.useLargeHealthPotion(hero);
-                } else {
-                    showInfoSync("Inventory", "No Large Health Potion left.");
-                    return;
-                }
-            }
-            case 3 -> {
-                if (inventory.getSmallManaPotion() > 0) {
-                    inventory.useSmallManaPotion(hero);
-                } else {
-                    showInfoSync("Inventory", "No Small Mana Potion left.");
-                    return;
-                }
-            }
-            case 4 -> {
-                if (inventory.getMediumManaPotion() > 0) {
-                    inventory.useMediumManaPotion(hero);
-                } else {
-                    showInfoSync("Inventory", "No Medium Mana Potion left.");
-                    return;
-                }
-            }
-            case 5 -> {
-                if (inventory.getLargeManaPotion() > 0) {
-                    inventory.useLargeManaPotion(hero);
-                } else {
-                    showInfoSync("Inventory", "No Large Mana Potion left.");
-                    return;
-                }
-            }
-            default -> {
-                return;
-            }
+            case 0 -> { if (inventory.getSmallHealthPotion() > 0) inventory.useSmallHealthPotion(hero); else { showInfoSync("Inventory", "No Small Health Potion left."); return; } }
+            case 1 -> { if (inventory.getMediumHealthPotion() > 0) inventory.useMediumHealthPotion(hero); else { showInfoSync("Inventory", "No Medium Health Potion left."); return; } }
+            case 2 -> { if (inventory.getLargeHealthPotion() > 0) inventory.useLargeHealthPotion(hero); else { showInfoSync("Inventory", "No Large Health Potion left."); return; } }
+            case 3 -> { if (inventory.getSmallManaPotion() > 0) inventory.useSmallManaPotion(hero); else { showInfoSync("Inventory", "No Small Mana Potion left."); return; } }
+            case 4 -> { if (inventory.getMediumManaPotion() > 0) inventory.useMediumManaPotion(hero); else { showInfoSync("Inventory", "No Medium Mana Potion left."); return; } }
+            case 5 -> { if (inventory.getLargeManaPotion() > 0) inventory.useLargeManaPotion(hero); else { showInfoSync("Inventory", "No Large Mana Potion left."); return; } }
+            default -> { return; }
         }
 
         int hpGain = Math.max(0, hero.getHp() - hpBefore);
         int manaGain = Math.max(0, hero.getMana() - manaBefore);
-        showInfoSync("Inventory",
-                "Potion used.\nHP +" + statFormat.format(hpGain) + " | Mana +" + statFormat.format(manaGain));
+        showInfoSync("Inventory", "Potion used.\nHP +" + statFormat.format(hpGain) + " | Mana +" + statFormat.format(manaGain));
         refreshInventoryPanel();
         refreshHeroDashboard();
     }
 
-    private void restoreHeroBattleState(
-            int hp,
-            int mana,
-            int cooldown1,
-            int cooldown2,
-            int cooldownU,
-            int stun,
-            int poison) {
+    private void restoreHeroBattleState(int hp, int mana, int cd1, int cd2, int cdU, int stun, int poison) {
         hero.setHp(hp);
         hero.setMana(mana);
-        hero.setCooldown1(cooldown1);
-        hero.setCooldown2(cooldown2);
-        hero.setCooldownU(cooldownU);
+        hero.setCooldown1(cd1);
+        hero.setCooldown2(cd2);
+        hero.setCooldownU(cdU);
         hero.setStun(stun);
         hero.setPoison(poison);
         refreshHeroDashboard();
@@ -3068,45 +2858,36 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         refreshProfilePanel();
     }
 
+    // -------------------------------------------------------------------------
+    // Battle log helpers + outcome enum
+    // -------------------------------------------------------------------------
+
     private String appendBattleLog(String current, String line) {
-        if (current == null || current.isBlank()) {
-            return line;
-        }
-        return current + "\n" + line;
+        return (current == null || current.isBlank()) ? line : current + "\n" + line;
     }
 
     private String truncateBattleLog(String log) {
-        if (log == null) {
-            return "";
-        }
+        if (log == null) return "";
         String[] lines = log.split("\\R");
         int start = Math.max(0, lines.length - 6);
         StringBuilder builder = new StringBuilder();
-        for (int i = start; i < lines.length; i++) {
-            builder.append(lines[i]).append("\n");
-        }
+        for (int i = start; i < lines.length; i++) builder.append(lines[i]).append("\n");
         return builder.toString().trim();
     }
 
-    private enum BattleOutcome {
-        WON,
-        LOST,
-        RAN
-    }
+    private enum BattleOutcome { WON, LOST, RAN }
+
+    // -------------------------------------------------------------------------
+    // Legacy console helpers
+    // -------------------------------------------------------------------------
 
     private void launchLegacyAction(String title, Runnable action) {
-        if (!requireHero()) {
-            return;
-        }
-
+        if (!requireHero()) return;
         appendLog("\n[" + title + "] opened from GUI buttons.\n");
 
         Thread worker = new Thread(() -> {
-            try {
-                action.run();
-            } catch (Exception exception) {
-                exception.printStackTrace();
-            } finally {
+            try { action.run(); } catch (Exception e) { e.printStackTrace(); }
+            finally {
                 SwingUtilities.invokeLater(() -> {
                     refreshHeroDashboard();
                     refreshInventoryPanel();
@@ -3119,56 +2900,40 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     }
 
     private boolean requireHero() {
-        if (hero != null) {
-            return true;
-        }
-
+        if (hero != null) return true;
         showInfoSync("Action Required", "Choose a character first.");
         return false;
     }
 
     private void submitLegacyInput() {
-        String rawInput = inputField.getText();
-
-        if (rawInput == null) {
-            return;
-        }
-
-        String submittedInput = rawInput.strip();
-
-        submitLegacyInputValue(submittedInput);
+        String raw = inputField.getText();
+        if (raw == null) return;
+        submitLegacyInputValue(raw.strip());
     }
 
-    private void submitLegacyShortcut(String submittedInput) {
-        submitLegacyInputValue(submittedInput);
-    }
+    private void submitLegacyShortcut(String input) { submitLegacyInputValue(input); }
 
-    private void submitLegacyInputValue(String submittedInput) {
+    private void submitLegacyInputValue(String input) {
         try {
-            gameInputWriter.write((submittedInput + System.lineSeparator()).getBytes(StandardCharsets.UTF_8));
+            gameInputWriter.write((input + System.lineSeparator()).getBytes(StandardCharsets.UTF_8));
             gameInputWriter.flush();
-            appendLog("\n> " + submittedInput + "\n");
+            appendLog("\n> " + input + "\n");
             inputField.setText("");
             setQuickChoiceVisible(false);
-        } catch (Exception exception) {
-            appendLog("\n[Input error] " + exception.getMessage() + "\n");
+        } catch (Exception e) {
+            appendLog("\n[Input error] " + e.getMessage() + "\n");
         }
     }
 
     private void observeLegacyOutput(String text) {
-        if (text == null || text.isEmpty()) {
-            return;
-        }
-
+        if (text == null || text.isEmpty()) return;
         if (!containsYesNoPrompt(text) && quickChoicePanel != null && quickChoicePanel.isVisible()) {
             setQuickChoiceVisible(false);
         }
     }
 
     private String filterLegacyOutput(String text) {
-        if (text == null || text.isEmpty()) {
-            return text;
-        }
+        if (text == null || text.isEmpty()) return text;
 
         pendingLegacyOutput.append(text);
         StringBuilder visibleOutput = new StringBuilder();
@@ -3178,11 +2943,7 @@ public class GameWindow implements BattlePanel.BattleActionListener {
 
             if (promptMatch == null) {
                 int safeLength = Math.max(0, pendingLegacyOutput.length() - LEGACY_OUTPUT_TAIL_LIMIT);
-
-                if (safeLength == 0) {
-                    break;
-                }
-
+                if (safeLength == 0) break;
                 visibleOutput.append(pendingLegacyOutput, 0, safeLength);
                 pendingLegacyOutput.delete(0, safeLength);
                 continue;
@@ -3213,14 +2974,8 @@ public class GameWindow implements BattlePanel.BattleActionListener {
     }
 
     private void setQuickChoiceVisible(boolean visible) {
-        if (quickChoicePanel == null || quickChoicePromptLabel == null) {
-            return;
-        }
-
-        if (quickChoicePanel.isVisible() == visible && quickChoicePromptLabel.isVisible() == visible) {
-            return;
-        }
-
+        if (quickChoicePanel == null || quickChoicePromptLabel == null) return;
+        if (quickChoicePanel.isVisible() == visible && quickChoicePromptLabel.isVisible() == visible) return;
         quickChoicePromptLabel.setVisible(visible);
         quickChoicePanel.setVisible(visible);
         quickChoicePanel.revalidate();
@@ -3229,63 +2984,38 @@ public class GameWindow implements BattlePanel.BattleActionListener {
 
     private MatchResult findPromptMatch(String text) {
         Matcher boxedMatcher = BOXED_YES_NO_PROMPT.matcher(text);
-
         while (boxedMatcher.find()) {
-            String candidate = boxedMatcher.group();
-
-            if (containsYesNoPrompt(candidate)) {
+            if (containsYesNoPrompt(boxedMatcher.group())) {
                 return new MatchResult(boxedMatcher.start(), boxedMatcher.end());
             }
         }
-
         Matcher inlineMatcher = INLINE_YES_NO_PROMPT.matcher(text);
-
         if (inlineMatcher.find() && containsYesNoPrompt(inlineMatcher.group())) {
             return new MatchResult(inlineMatcher.start(), inlineMatcher.end());
         }
-
         return null;
     }
 
-    private boolean containsYesNoPrompt(String text) {
-        return text != null && text.contains("(y/n)");
-    }
+    private boolean containsYesNoPrompt(String text) { return text != null && text.contains("(y/n)"); }
 
     private boolean looksLikePromptPrefix(String text) {
         return text.contains("┌") || text.contains("(y/n)") || text.endsWith(": ") || text.endsWith("-->| ");
     }
 
     private String extractPromptText(String promptBlock) {
-        String[] lines = promptBlock.split("\\R");
-
-        for (String line : lines) {
-            if (!line.contains("(y/n)")) {
-                continue;
-            }
-
-            String cleaned = line
-                    .replace("│", "")
-                    .replace("(y/n)", "")
-                    .replace(":", "")
-                    .replace("-->|", "")
-                    .trim();
-
-            if (!cleaned.isEmpty()) {
-                return cleaned;
-            }
+        for (String line : promptBlock.split("\\R")) {
+            if (!line.contains("(y/n)")) continue;
+            String cleaned = line.replace("│", "").replace("(y/n)", "")
+                    .replace(":", "").replace("-->|", "").trim();
+            if (!cleaned.isEmpty()) return cleaned;
         }
-
         return "Choose:";
     }
 
     private static final class MatchResult {
         private final int start;
         private final int end;
-
-        private MatchResult(int start, int end) {
-            this.start = start;
-            this.end = end;
-        }
+        private MatchResult(int start, int end) { this.start = start; this.end = end; }
     }
 
     private void appendLog(String text) {
@@ -3293,155 +3023,34 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         outputArea.setCaretPosition(outputArea.getDocument().getLength());
     }
 
-    private void playNarrationSequence(String title, String[] lines) {
-        if (lines == null || lines.length == 0) {
-            return;
-        }
+    // -------------------------------------------------------------------------
+    // Narration sequences
+    // ------------------------------------------------------------------------- 
 
-        int visibleCount = 0;
+    // -------------------------------------------------------------------------
+    // Narration sequences
+    // ------------------------------------------------------------------------- 
+
+    private void playNarrationSequence(String title, String[] lines) {
+        if (lines == null || lines.length == 0) return;
+
+        List<String> visibleLines = new ArrayList<>();
         for (String line : lines) {
             if (line != null && !line.isBlank()) {
-                visibleCount++;
+                visibleLines.add(line.trim());
             }
         }
-        if (visibleCount == 0) {
-            return;
-        }
 
-        int shown = 0;
-        for (String line : lines) {
-            if (line == null || line.isBlank()) {
-                continue;
-            }
-            boolean fadeIn = shown == 0;
-            boolean fadeOut = shown == visibleCount - 1;
-            showNarrationSync(title, line.trim(), fadeIn, fadeOut);
-            shown++;
+        for (int i = 0; i < visibleLines.size(); i++) {
+            boolean fadeIn = i == 0;
+            boolean fadeOut = i == visibleLines.size() - 1;
+            showNarrationSync(title, visibleLines.get(i), fadeIn, fadeOut);
         }
     }
 
-    private String[] buildAcademyNarration() {
-        return new String[] {
-                "The tall gates of Mystvale Academy open with a low groan as you step inside.",
-                "A familiar chill brushes your shoulder. Void appears, flickering softly in the light.",
-                "\"Mystvale is vast,\" the spirit says. \"The Library offers knowledge and quests. The Training Ground forges your strength.\"",
-                "\"The Principal's Office decides your eligibility, and every path beyond the academy comes with danger.\"",
-                "\"Choose your road carefully. Every place here will shape the hero you become.\""
-        };
-    }
-
-    private String[] buildLibraryNarration() {
-        return new String[] {
-                "As you step into the library, the air grows still and heavy with old paper and quiet thought.",
-                "Void flickers into view beside the shelves. \"This is Mystvale's Library. May knowledge guide you.\"",
-                "The spirit fades, leaving only the rustle of unseen pages and the promise of secrets waiting to be uncovered."
-        };
-    }
-
-    private String[] buildTrainingNarration() {
-        return new String[] {
-                "The Training Ground bursts with life: sparring steel, shouted instructions, and the rhythm of practiced movement.",
-                "A tall coach studies your stance with sharp eyes. \"Untaught, but solid. If you want to grow stronger, earn it.\"",
-                "\"Training here isn't just power,\" the coach warns. \"It's control, discipline, and the will to keep going.\""
-        };
-    }
-
-    private String[] buildPrincipalOfficeNarration() {
-        return new String[] {
-                "The doors of the Principal's Office stand tall and unyielding as you approach.",
-                "Golden light spills across the marble floor while the academy crest gleams overhead.",
-                "A secretary stops you before the inner chamber. \"Before seeing Principal Nemeesha, your progress must be verified.\"",
-                "The room falls quiet, as if even the walls are waiting to judge whether you are ready for what comes next."
-        };
-    }
-
-    private String[] buildArea1EligibilityNarration() {
-        return new String[] {
-                "Principal Nemeesha Brightwell nods as you step forward.",
-                "\"You have shown promise,\" she says. \"The Forest of Reverie will now open to you.\"",
-                "\"Do not underestimate what waits there. Even the gentlest woods may hide fangs.\""
-        };
-    }
-
-    private String[] buildArea2EligibilityNarration() {
-        return new String[] {
-                "Principal Nemeesha studies you with a steadier, more serious gaze than before.",
-                "\"Impressive progress. You have earned passage into Reverie's Edge.\"",
-                "\"It is a place that tests patience as much as strength. Keep your focus, or it will swallow you.\""
-        };
-    }
-
-    private String[] buildArea3EligibilityNarration() {
-        return new String[] {
-                "The principal's expression turns solemn as you approach her desk.",
-                "\"Few reach this point,\" she says quietly. \"The Forsaken Lands now await you.\"",
-                "\"Beyond those gates lie trials unlike any you have faced. Walk forward with courage and wisdom.\""
-        };
-    }
-
-    private String[] buildShopNarration() {
-        return new String[] {
-                "Void appears beside the shop door, calm against the academy's hush.",
-                "\"This is the supply shop,\" the spirit says. \"Weapons, potions, and the tools students depend on to survive.\"",
-                "\"Spend with intention. Not everything you need will be offered twice.\""
-        };
-    }
-
-    private String[] buildShopConversationNarration() {
-        return new String[] {
-                "You push open the creaking door, and the scent of herbs and aged wood fills the air.",
-                "A small bell jingles. Behind the counter, the shopkeeper peers over his spectacles.",
-                "\"Welcome to Mystic Curiosities,\" he says. \"I'm Kabang Cobbleton. Handle the items wisely. They all carry stories.\""
-        };
-    }
-
-    private String[] buildInventoryNarration() {
-        return new String[] {
-                "Void emerges without a sound, its form quiet and steady beside you.",
-                "\"All that you carry tells a story,\" it says. \"Weapons, potions, relics, and the choices you've made so far.\"",
-                "\"Your space is not endless. What you keep reflects what you value. Choose wisely.\""
-        };
-    }
-
-    private String[] buildArea1Narration() {
-        return new String[] {
-                "The trees of the Forest of Reverie rise around you, ancient and watchful.",
-                "Void drifts into view. \"This is the inner forest, where your first true trials begin.\"",
-                "The spirit fades, leaving you alone with the rustle of leaves and the uneasy sense that the forest is already studying you."
-        };
-    }
-
-    private String[] buildArea2Narration() {
-        return new String[] {
-                "The air thickens as you step into Reverie's Edge, where the ground sours and the silence feels wrong.",
-                "Void flickers beside you. \"This region is harsher, crueler, and home to stronger entities. Stay sharp.\"",
-                "When the spirit vanishes, only the mist remains, curling around your path like a warning."
-        };
-    }
-
-    private String[] buildArea3Narration() {
-        return new String[] {
-                "Stone ruins and jagged towers stretch across the Forsaken Lands, vast and unnervingly alive.",
-                "Void appears with an unreadable expression. \"This is the outer region, where the strongest entities gather.\"",
-                "\"At the end of this land waits the heart of your trial. Never let your guard down.\""
-        };
-    }
-
-    private String[] buildSacrificeEndingNarration() {
-        return new String[] {
-                "The silence after Kim Morvain's fall feels almost impossible, as if the academy itself has forgotten how to breathe.",
-                "You make your choice knowing the cost. The path home will open only if something of you is left behind.",
-                "Light gathers, the curse loosens, and Mystvale fades at the edges. Your journey ends with sacrifice, but also with freedom."
-        };
-    }
-
-    private String[] buildLoopEndingNarration() {
-        return new String[] {
-                "For a heartbeat, everything seems still. Then the world bends.",
-                "Corridors shift, shadows stretch, and the academy reforms around you like a memory refusing to end.",
-                "The cycle begins again. Mystvale remains, waiting for you to walk its halls once more."
-        };
-    }
+    // -------------------------------------------------------------------------
+    // Screen navigation
+    // -------------------------------------------------------------------------
 
     private void showLandingScreen() {
         titleLabel.setText("Mystvale Academy");
@@ -3460,30 +3069,109 @@ public class GameWindow implements BattlePanel.BattleActionListener {
         screenLayout.show(screenPanel, screenName);
 
         boolean isBattleScreen = SCREEN_BATTLE.equals(screenName);
-        if (headerPanel != null) {
-            headerPanel.setVisible(!isBattleScreen);
+        boolean isShopScreen = SCREEN_SHOP.equals(screenName);
+        if (headerPanel != null) headerPanel.setVisible(!isBattleScreen);
+        if (gameShellPanel != null) {
+            gameShellPanel.setBackground(isShopScreen ? COLOR_SHOP_OUTSIDE : COLOR_BACKGROUND);
         }
         if (headerExitButton != null) {
             boolean hideExit = SCREEN_CHARACTER.equals(screenName) || SCREEN_STORY.equals(screenName);
             headerExitButton.setVisible(!hideExit);
+            headerExitButton.setForeground(isShopScreen ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
+            headerExitButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         }
+        if (headerSaveButton != null) {
+            headerSaveButton.setVisible(SCREEN_MAIN.equals(screenName));
+            headerSaveButton.setForeground(isShopScreen ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
+            headerSaveButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        }
+        if (headerBackButton != null) {
+            headerBackButton.setVisible(isShopScreen);
+            headerBackButton.setForeground(isShopScreen ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
+            headerBackButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        }
+        if (headerPanel != null) {
+            headerPanel.setBackground(isShopScreen ? COLOR_SHOP_OUTSIDE : COLOR_BACKGROUND);
+            headerPanel.setOpaque(!isShopScreen);
+            headerPanel.setBorder(isShopScreen
+                    ? BorderFactory.createEmptyBorder(18, 22, 14, 22)
+                    : defaultHeaderBorder);
+        }
+        titleLabel.setForeground(isShopScreen ? COLOR_SHOP_TEXT : COLOR_TEXT_DARK);
+        subtitleLabel.setForeground(isShopScreen ? COLOR_SHOP_TEXT_MUTED : COLOR_TEXT_MUTED);
         if (leftPane != null) {
-            leftPane.setBackground(isBattleScreen ? COLOR_BATTLE_PANEL : COLOR_BACKGROUND);
+            leftPane.setBackground(isBattleScreen ? COLOR_BATTLE_PANEL : isShopScreen ? COLOR_SHOP_OUTSIDE : COLOR_BACKGROUND);
+            leftPane.setOpaque(!isShopScreen);
             leftPane.setBorder(isBattleScreen ? BorderFactory.createEmptyBorder() : defaultLeftPaneBorder);
         }
         if (screenPanel != null) {
             screenPanel.setOpaque(isBattleScreen);
-            screenPanel.setBackground(isBattleScreen ? COLOR_BATTLE_PANEL : COLOR_BACKGROUND);
+            screenPanel.setBackground(isBattleScreen ? COLOR_BATTLE_PANEL : isShopScreen ? COLOR_SHOP_OUTSIDE : COLOR_BACKGROUND);
         }
     }
 
-    @Override
-    public void onBattleAction(int action) {
-        submitBattleAction(action);
+    private boolean isShopHeaderActive() {
+        return headerPanel != null && COLOR_SHOP_OUTSIDE.equals(headerPanel.getBackground());
     }
 
-    @Override
-    public void onShowAttackPanel() {
-        battlePanel.showAttackPanel();
+    // -------------------------------------------------------------------------
+    // Sync dialog helpers
+    // -------------------------------------------------------------------------
+
+    private void runOnEdtSync(Runnable task) {
+        if (SwingUtilities.isEventDispatchThread()) { task.run(); return; }
+        try { SwingUtilities.invokeAndWait(task); } catch (Exception ignored) {}
     }
+
+    private void showInfoSync(String title, String message) {
+        runOnEdtSync(() -> { if (overlay != null) overlay.showMessage(title, message); });
+    }
+
+    private void showNarrationSync(String title, String message) {
+        runOnEdtSync(() -> { if (overlay != null) overlay.showMessage(title, message); });
+    }
+
+    private void showNarrationSync(String title, String message, boolean fadeIn, boolean fadeOut) {
+        runOnEdtSync(() -> {
+            if (overlay != null) {
+                overlay.showMessageSequence(title, message, fadeIn, fadeOut);
+            }
+        });
+    }
+
+    private void showWarningSync(String title, String message) {
+        runOnEdtSync(() -> { if (overlay != null) overlay.showMessage(title, message); });
+    }
+
+    private int showConfirmSync(String title, String message) {
+        final int[] choice = { 1 };
+        runOnEdtSync(() -> { if (overlay != null) choice[0] = overlay.showConfirm(title, message); });
+        return choice[0];
+    }
+
+    private int showOptionSync(String title, String message, Object[] options, Object initial) {
+        final int[] choice = { -1 };
+        runOnEdtSync(() -> { if (overlay != null) choice[0] = overlay.showOptions(title, message, options, initial); });
+        return choice[0];
+    }
+
+    private int showSlotChooserSync(String title, String prompt, boolean allowEmptySlots) {
+        final int[] choice = { -1 };
+        runOnEdtSync(() -> {
+            if (overlay != null) {
+                choice[0] = overlay.showSlotChooser(title, prompt, Load.getSlotInfos(), allowEmptySlots);
+            }
+        });
+        return choice[0];
+    }
+
+    // -------------------------------------------------------------------------
+    // BattlePanel listener
+    // -------------------------------------------------------------------------
+
+    @Override
+    public void onBattleAction(int action) { submitBattleAction(action); }
+
+    @Override
+    public void onShowAttackPanel() { battlePanel.showAttackPanel(); }
 }
